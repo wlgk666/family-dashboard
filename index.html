@@ -334,6 +334,23 @@ body.simple #nav a{font-size:14px}
 .pop-memo{background:var(--tint);border-radius:12px;padding:6px 12px;font-size:14px}
 .pop-bal{font-size:13px;color:var(--muted);margin-bottom:8px}
 .pop .btn{width:100%;padding:12px;font-size:16px;border-radius:14px}
+.ask-title{font-weight:700;font-size:17px;margin-bottom:6px}
+.ask-sub{font-size:14px;color:var(--muted);margin-bottom:6px}
+.pop .btn.ghost{color:var(--ink)}
+/* ---- diary lock ---- */
+.lock-card{align-items:center;text-align:center;max-width:420px;width:100%;justify-self:center;margin:0 auto}
+.lock-ic{font-size:44px;line-height:1}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin:4px 0}
+.pin-dots span{width:18px;height:18px;border-radius:50%;border:2px solid var(--deep)}
+.pin-dots span.on{background:var(--deep)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px;justify-content:center}
+.pin-pad button{height:64px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.pin-pad button.fn{font-size:15px;font-weight:600;border-color:transparent;background:transparent}
+.pin-pad button:active{background:var(--red-soft)}
+.pin-msg{color:var(--red);font-size:14px;min-height:1.4em;margin:0}
+.lock-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+@media (prefers-reduced-motion:no-preference){.pin-dots.shake{animation:shake .4s}}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 @media (prefers-reduced-motion:no-preference){
   .pop-card{animation:popin .45s cubic-bezier(.2,1.4,.4,1)}
   .pop-coins span{display:inline-block;animation:bounce 1s ease-in-out infinite}
@@ -469,6 +486,7 @@ body.simple #nav a{font-size:14px}
           <input id="ev-end" type="time" aria-label="끝 시간">
           <div class="chips" style="flex-basis:100%"><span class="label">누가</span><span id="ev-who" class="chips"></span></div>
           <div class="chips" style="flex-basis:100%"><span class="label">종류</span><span class="chips" id="ev-types"></span></div>
+          <div class="chips" style="flex-basis:100%"><span class="label">반복</span><button class="chip t" type="button" id="ev-repeat" aria-pressed="false" title="고른 날짜의 요일마다 매주 보여요">🔁 매주 반복</button><span class="chips" id="ev-until-wrap" hidden><span class="label">언제까지</span><input id="ev-until" type="date" aria-label="반복 끝나는 날 (비우면 계속)"><span class="sub">비우면 계속</span></span></div>
           <button class="btn" id="ev-submit">일정 추가</button>
           <button class="btn ghost" type="button" id="ev-cancel" hidden>취소</button>
         </form>
@@ -479,7 +497,17 @@ body.simple #nav a{font-size:14px}
 
   <!-- DIARY -->
   <section class="view" data-view="diary" hidden>
-    <div class="grid-2">
+    <div class="card lock-card" id="di-lock" hidden>
+      <div class="lock-ic" aria-hidden="true">🔒</div>
+      <h2 id="pin-title">일기장이 잠겨 있어요</h2>
+      <div class="sub" id="pin-sub">비밀번호 4자리를 눌러 주세요</div>
+      <div class="pin-dots" id="pin-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <p class="pin-msg" id="pin-msg" role="status"></p>
+      <div class="pin-pad" id="pin-pad"></div>
+      <button class="btn ghost" type="button" id="pin-cancel" hidden>취소</button>
+      <div class="sub" id="pin-forgot">비밀번호를 잊었으면 엄마·아빠에게 말해 주세요. 가족 메뉴에서 지울 수 있어요.</div>
+    </div>
+    <div class="grid-2" id="di-main">
       <div class="card">
         <h2>오늘의 일기 <span class="sub" style="font-weight:400">🔒 나만 보기</span></h2>
         <form class="add" id="f-di">
@@ -488,6 +516,7 @@ body.simple #nav a{font-size:14px}
           <textarea id="di-text" placeholder="오늘 있었던 일, 고마웠던 일을 적어요" maxlength="2000" required aria-label="일기 내용"></textarea>
           <button class="btn">일기 저장</button>
         </form>
+        <div class="lock-row" id="di-lockrow"></div>
       </div>
       <div class="card">
         <div class="card-h"><h2>가족 일기장</h2><span class="pill" id="di-count"></span></div>
@@ -616,6 +645,12 @@ body.simple #nav a{font-size:14px}
         <button class="btn">등록</button>
       </form>
     </div>
+    <div class="card" id="backup-card">
+      <h2>💾 백업</h2>
+      <div class="sub">일정, 용돈 기록, 내 일기를 파일로 내려받아요. 아이패드·아이폰에서는 공유 창이 뜨면 ‘파일에 저장’을 누르세요.</div>
+      <div class="sub" id="backup-note"></div>
+      <div class="lock-row"><button class="btn navy" type="button" id="backup-txt">읽기용 파일 받기 (.txt)</button><button class="btn ghost" type="button" id="backup-json">전체 데이터 받기 (.json)</button></div>
+    </div>
     <div class="card">
       <h2>이 기기 로그아웃</h2>
       <div class="sub">가족 비밀번호를 다시 입력해야 들어올 수 있어요.</div>
@@ -652,11 +687,19 @@ body.simple #nav a{font-size:14px}
   </div>
 </div>
 
+<div class="pop" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="ask-title">
+  <div class="pop-card">
+    <div class="ask-title" id="ask-title"></div>
+    <div class="ask-sub" id="ask-sub"></div>
+    <div id="ask-btns" style="display:flex;flex-direction:column;gap:8px;width:100%"></div>
+  </div>
+</div>
+
 <script src="vendor/supabase-2.58.0.js"></script>
 <script src="config.js?v=4"></script>
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=22"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>
