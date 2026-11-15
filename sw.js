@@ -1,5 +1,5 @@
 // Offline shell + notifications. Data always comes from Supabase.
-const CACHE = "dugout-v4";
+const CACHE = "dugout-v5";
 const SHELL = ["./", "index.html", "app.js?v=4", "store.js?v=4", "config.js?v=4", "manifest.webmanifest", "icons/icon-192.png", "vendor/supabase-2.58.0.js"];
 
 self.addEventListener("install", e => {

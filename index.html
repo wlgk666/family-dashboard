@@ -213,7 +213,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 /* phones: rail becomes a bottom bar */
 @media (max-width:760px){
   .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
-  .ball,.rail .spacer{display:none}
+  .rail .ball,.rail .spacer{display:none}
   .rail nav{flex-direction:row;justify-content:space-between}
   .rail a{flex:1;padding:6px 0;font-size:10px;border-radius:10px}
   .main{margin-left:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
@@ -263,9 +263,9 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .jbal strong{font-size:15px;font-variant-numeric:tabular-nums}
 
 /* ---- gate & popup ---- */
-.gate,.pop{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.gate,.pop{position:fixed;inset:0;z-index:50;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;overflow-y:auto;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .gate{background:var(--navy)}
-.gate-card{background:var(--surface);border-radius:24px;padding:28px 22px;width:min(400px,100%);display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+.gate-card{background:var(--surface);border-radius:24px;padding:28px 22px;width:100%;max-width:400px;justify-self:center;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
 .gate-card h1{font-family:var(--f-display);font-weight:400;font-size:30px;color:var(--brand)}
 .gate-card h1 em{font-style:normal;color:var(--red)}
 .ball.big{margin:0;box-shadow:0 0 0 3px var(--navy),0 0 0 6px var(--red-soft)}
@@ -276,7 +276,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .gate-new .row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .gate-msg{color:var(--red);font-size:14px;margin:0;min-height:1.4em}
 .pop{background:rgb(5 12 30 / .6)}
-.pop-card{background:var(--surface);border-radius:28px;padding:28px 24px 22px;width:min(340px,100%);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:0 20px 60px rgb(0 0 0 / .3)}
+.pop-card{background:var(--surface);border-radius:28px;padding:28px 24px 22px;width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:0 20px 60px rgb(0 0 0 / .3)}
 .pop-coins{font-size:56px;line-height:1}
 .pop-from{font-weight:700;font-size:17px}
 .pop-amt{font-family:var(--f-display);font-size:44px;color:var(--red);font-variant-numeric:tabular-nums}
