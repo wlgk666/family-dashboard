@@ -4,7 +4,7 @@
   const COLORS = 6;
   const DOW = ["일","월","화","수","목","금","토"];
   const MOODS = [["홈런","var(--m0)"],["안타","var(--m4)"],["볼넷","var(--m3)"],["삼진","var(--m1)"]];
-  const NAMES = ["members","events","chores","notices","diary","shopping","messages","allowance"];
+  const NAMES = ["members","events","chores","notices","diary","shopping","messages","allowance","push"];
   const state = Object.fromEntries(NAMES.map(n => [n, []]));
   state.weather = [];
   const CFG = window.FAMILY_CONFIG || {};
@@ -329,6 +329,7 @@
   function sendMsg(text, sticker) {
     if (!ready()) return Promise.resolve();
     return db.collection("messages").add({ text, sticker: !!sticker, by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
+      const w = member(me); notify({ except: me || "", title: `💬 ${w ? w.name : "가족"}`, body: text, url: "./#board", tag: "chat" });
       if (state.messages.length >= 150) {
         const old = [...state.messages].sort((a,b) => a.createdAt - b.createdAt).slice(0, state.messages.length - 149);
         for (const o of old) await db.doc("messages/"+o.id).delete();
@@ -393,8 +394,11 @@
       const kind = el("button","chip t", m.kind === "parent" ? "어른" : "아이"); kind.type = "button"; kind.title = "눌러서 바꾸기";
       kind.onclick = () => ready() && db.doc("members/"+m.id).update({ kind: m.kind === "parent" ? "child" : "parent" }).catch(fail);
       const mine = el("button","chip t", m.id === me ? "✓ 이 기기 주인" : "이 기기는 나"); mine.type = "button"; mine.setAttribute("aria-pressed", String(m.id === me));
-      mine.onclick = () => { me = m.id; store("fam-me", me); renderAll(); toast(`이 기기는 이제 ${m.name}의 기기예요`); };
-      r.append(avatar(m), nm, num, kind, sws, mine, xBtn(m.name, del("members", m.id)));
+      mine.onclick = () => { me = m.id; store("fam-me", me); renderAll(); syncPush(); toast(`이 기기는 이제 ${m.name}의 기기예요`); };
+      const bells = state.push.filter(x => x.memberId === m.id).length;
+      r.append(avatar(m), nm, num, kind, sws, mine);
+      if (bells) { const b = el("span","pill", `🔔 ${bells}`); b.title = `알림 받는 기기 ${bells}대`; r.append(b); }
+      r.append(xBtn(m.name, del("members", m.id)));
       box.append(r);
     });
   }
@@ -421,7 +425,7 @@
     renderFilter(); renderWhoChips();
     fillSelect($("ch-who"), sortedMembers(), "누구든");
     fillSelect($("no-who"), kids(), null);
-    renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderStatus(); checkPop();
+    renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderStatus(); renderPush(); checkPop();
   }
 
   // ---------- forms ----------
@@ -591,7 +595,7 @@
     });
     if (!ks.length) cards.append(el("div","empty","가족 메뉴에서 아이를 ‘아이’로 등록하면 용돈 통장이 생겨요."));
     // selects + chips
-    fillSelect($("mo-to"), ks, null); fillSelect($("sp-who"), ks, null);
+    fillSelect($("mo-to"), ks, null); fillSelect($("sp-who"), ks, null); fillSelect($("in-who"), ks, null);
     $$("#mo-quick button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.amt) === moneyAmt && $("mo-amt").value == moneyAmt)));
     // history
     const hist = $("money-hist"); hist.replaceChildren();
@@ -600,13 +604,12 @@
       const li = el("li"), to = member(a.to), from = member(a.from);
       li.append(avatar(to, true));
       const g = el("div","grow"); g.append(el("div", null, a.memo || (a.amount > 0 ? "용돈" : "사용")));
-      g.append(el("div","meta", `${to ? to.name : "?"} · ${a.amount > 0 ? (from ? "보낸 사람 " + from.name : "입금") : "씀"} · ${ago(a.createdAt)}`));
+      g.append(el("div","meta", `${to ? to.name : "?"} · ${a.kind === "init" ? "잔액 맞춤" : a.amount > 0 ? (from ? "보낸 사람 " + from.name : "입금") : "씀"} · ${ago(a.createdAt)}`));
       li.append(g, el("span", "amt " + (a.amount > 0 ? "plus" : "minus"), (a.amount > 0 ? "+" : "") + won(a.amount)));
       li.append(xBtn("용돈 기록", del("allowance", a.id)));
       hist.append(li);
     });
     if (!list.length) hist.append(el("li","empty","용돈을 보내면 여기에 통장처럼 쌓여요."));
-    $("noti-btn").hidden = !("Notification" in window) || Notification.permission === "granted";
   }
   $$("#mo-quick button").forEach(b => b.onclick = () => { moneyAmt = Number(b.dataset.amt); $("mo-amt").value = moneyAmt; renderMoney(); });
   $("f-money").addEventListener("submit", guard(async () => {
@@ -615,8 +618,17 @@
     if (!(amount > 0)) return toast("보낼 금액을 적어 주세요.");
     const memo = $("mo-memo").value.trim();
     await db.collection("allowance").add({ to, from: me || "", amount, kind: "in", memo, seen: false, createdAt: Date.now() });
+    { const f = member(me); notify({ to: [to], except: me || "", title: "용돈이 들어왔어요 💰", body: `${f ? f.name : "가족"}: ${won(amount)}${memo ? " · " + memo : ""}`, url: "./#money", tag: "money" }); }
     $("mo-memo").value = "";
     const m = member(to); toast(`${m ? m.name : ""}에게 ${won(amount)} 보냈어요 💌`);
+  }));
+  $("f-init").addEventListener("submit", guard(async () => {
+    const to = $("in-who").value, target = Math.round(Number($("in-amt").value));
+    if (!to || !(target >= 0) || $("in-amt").value === "") return toast("누구 통장에 얼마로 맞출지 적어 주세요.");
+    const diff = target - balanceOf(to), m = member(to);
+    if (!diff) return toast(`${m ? m.name : ""} 통장은 이미 ${won(target)}이에요.`);
+    await db.collection("allowance").add({ to, from: me || "", amount: diff, kind: "init", memo: `잔액을 ${won(target)}으로 맞췄어요`, seen: true, createdAt: Date.now() });
+    $("in-amt").value = ""; toast(`${m ? m.name : ""} 통장 잔액을 ${won(target)}으로 맞췄어요`);
   }));
   $("f-spend").addEventListener("submit", guard(async () => {
     const to = $("sp-who").value, amount = Math.round(Number($("sp-amt").value));
@@ -624,7 +636,6 @@
     await db.collection("allowance").add({ to, from: to, amount: -amount, kind: "out", memo: $("sp-memo").value.trim(), seen: true, createdAt: Date.now() });
     $("sp-amt").value = ""; $("sp-memo").value = ""; toast("쓴 돈을 기록했어요");
   }));
-  $("noti-btn").onclick = async () => { try { const p = await Notification.requestPermission(); toast(p === "granted" ? "알림을 켰어요" : "알림이 꺼져 있어요. 브라우저 설정에서 켤 수 있어요."); } catch (e) {} renderMoney(); };
 
   // popup for the person who received money
   const shownPop = new Set();
@@ -640,9 +651,65 @@
     $("pop-bal").textContent = `지금 내 용돈 ${won(balanceOf(me))}`;
     $("pop").hidden = false; $("pop-ok").focus();
     $("pop-ok").onclick = () => { $("pop").hidden = true; db.doc("allowance/" + a.id).update({ seen: true, seenAt: Date.now() }).catch(console.error); setTimeout(checkPop, 300); };
-    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-      try { navigator.serviceWorker?.ready.then(r => r.showNotification("용돈이 들어왔어요 💰", { body: `${from ? from.name : "가족"}: ${won(a.amount)} ${a.memo || ""}`, icon: "icons/icon-192.png", tag: a.id })); } catch (e) {}
-    }
+  }
+
+  // ---------- push notifications (works with the app closed) ----------
+  const PUSH_URL = CFG && CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/family-push" : "";
+  let famKey = "", myPushId = "";
+  try { myPushId = localStorage.getItem("fam-push") || ""; } catch (e) {}
+  const pushOK = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isApple = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && "ontouchend" in document);
+  const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+  const shortHash = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].slice(0, 10).map(b => b.toString(16).padStart(2, "0")).join("");
+  function notify(o) {
+    if (!PUSH_URL || !db || !famKey) return;
+    fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey }, body: JSON.stringify(o) }).catch(() => {});
+  }
+  async function saveSub(sub) {
+    const id = await shortHash(sub.endpoint), ua = navigator.userAgent;
+    myPushId = id; store("fam-push", id);
+    const dev = /iPhone/.test(ua) ? "iPhone" : isApple() ? "iPad" : /Android/.test(ua) ? "Android" : "컴퓨터";
+    await db.doc("push/" + id).set({ sub: sub.toJSON(), memberId: me, device: dev, updatedAt: Date.now() });
+  }
+  async function enablePush() {
+    if (!ready()) return;
+    if (!member(me)) return toast("가족 메뉴에서 ‘이 기기는 나’를 먼저 눌러 주세요.");
+    if (!pushOK()) return toast(isApple() && !isStandalone() ? "홈 화면에 추가한 앱으로 열어야 알림을 켤 수 있어요." : "이 브라우저는 알림을 지원하지 않아요.");
+    try {
+      const p = await Notification.requestPermission();
+      if (p !== "granted") { renderPush(); return toast("알림이 꺼져 있어요. 설정 → 알림 → 오니가족에서 켤 수 있어요."); }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const { publicKey } = await (await fetch(PUSH_URL)).json();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(publicKey) });
+      }
+      await saveSub(sub);
+      toast("이 기기에 알림을 켰어요 🔔");
+    } catch (e) { console.error(e); toast("알림을 켜지 못했어요. 잠시 뒤 다시 해 주세요."); }
+    renderPush();
+  }
+  async function syncPush() {
+    try {
+      if (!db || !member(me) || !pushOK() || Notification.permission !== "granted") return;
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+      if (!sub) return;
+      const id = await shortHash(sub.endpoint), cur = state.push.find(x => x.id === id);
+      if (!cur || cur.memberId !== me) await saveSub(sub); else if (myPushId !== id) { myPushId = id; store("fam-push", id); }
+      renderPush();
+    } catch (e) { console.warn(e); }
+  }
+  function renderPush() {
+    const granted = "Notification" in window && Notification.permission === "granted";
+    const on = granted && !!myPushId && state.push.some(x => x.id === myPushId && x.memberId === me);
+    $$(".noti-btn").forEach(b => { b.hidden = on || !db; b.onclick = enablePush; });
+    const st = $("push-status"); if (!st) return;
+    const blocked = "Notification" in window && Notification.permission === "denied";
+    st.textContent = on ? "이 기기는 알림을 받고 있어요. 수다방 새 글과 용돈 입금을 앱이 꺼져 있어도 알려 줘요."
+      : blocked ? "알림이 막혀 있어요. 아이폰·아이패드 설정 → 알림 → 오니가족에서 ‘알림 허용’을 켜 주세요."
+      : !pushOK() && isApple() && !isStandalone() ? "Safari에서 공유 → 홈 화면에 추가한 뒤, 홈 화면의 오니가족 아이콘으로 열어서 켜 주세요."
+      : "버튼을 누르면 수다방 새 글과 용돈 입금을 앱이 꺼져 있어도 알려 줘요.";
   }
 
   // ---------- connect ----------
@@ -660,7 +727,7 @@
     const n = await st.loadAll();
     NAMES.forEach(nm => state[nm] = pull(st, nm));
     if (n === 0 && !allowNew) return "empty";
-    db = st; store("fam-key", key); renderAll();
+    db = st; famKey = key; store("fam-key", key); renderAll(); syncPush();
     return "ok";
   }
   function showGate(msg) {
