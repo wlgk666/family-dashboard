@@ -147,7 +147,7 @@
       if (!list.length) hl.append(el("div","empty", selDay ? "이 날은 일정이 없어요." : "다가오는 일주일은 일정이 비어 있어요."));
       $("home-more").href = "#calendar"; $("home-add").hidden = false;
     } else {
-      const list = [...state.diary].filter(d => !filter || d.by === filter).sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt).slice(0,5);
+      const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt).slice(0,5);
       $("home-sub").textContent = `최근 일기 ${list.length}편`;
       list.forEach(d => hl.append(diaryCard(d, false)));
       if (!list.length) hl.append(el("div","empty","아직 쓴 일기가 없어요. 일기 메뉴에서 오늘 하루를 남겨 보세요."));
@@ -341,11 +341,11 @@
   function renderDiary() {
     const mb = $("di-mood"); mb.replaceChildren();
     MOODS.forEach(([n]) => { const b = el("button","chip t", n); b.type = "button"; b.setAttribute("aria-pressed", String(diMood===n)); b.onclick = () => { diMood = n; renderDiary(); }; mb.append(b); });
-    const list = [...state.diary].filter(d => !filter || d.by === filter).sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt);
+    const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt);
     $("di-count").textContent = `${list.length}편`;
     const box = $("di-list"); box.replaceChildren();
     list.forEach(d => box.append(diaryCard(d, true)));
-    if (!list.length) box.append(el("div","empty","첫 일기를 써 보세요. 기분은 홈런부터 삼진까지 골라요."));
+    if (!list.length) box.append(el("div","empty", member(me) ? "첫 일기를 써 보세요. 내 일기는 나만 볼 수 있어요 🔒" : "가족 메뉴에서 ‘이 기기는 나’를 먼저 골라 주세요. 일기는 각자 자기 것만 보여요."));
   }
 
   // ---------- 수다방 (family chat) ----------
@@ -904,7 +904,7 @@
   setInterval(() => { if (db && !document.hidden) db.loadAll().catch(console.error); }, 60000);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r => r.update()).catch(() => {});
   // 새 버전이 올라오면 앱을 열 때 저절로 새로고침 (홈 화면 앱이 옛날 화면에 머무르지 않게)
-  const APP_VERSION = "21";
+  const APP_VERSION = "22";
   async function checkVersion() {
     try {
       const v = await (await fetch("version.json?t=" + Date.now(), { cache: "no-store" })).json();
