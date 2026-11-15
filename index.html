@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>오니가족🩷</title>
 <meta name="theme-color" content="#0b2557">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -232,6 +232,12 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 
 /* phones: rail becomes a bottom bar */
 @media (max-width:760px){
+  /* 아이폰은 16px보다 작은 입력칸을 누르면 화면을 확대해서 하단 메뉴·카드가 잘려요 → 16px로 */
+  input,select,textarea{font-size:16px!important}
+  /* 하단 메뉴: 화면 아래에 딱 붙여 고정, 5칸을 똑같은 폭으로 */
+  .rail{position:fixed;left:0;right:0;bottom:0;max-width:100vw;transform:translateZ(0)}
+  .rail nav{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px}
+  .rail a,.rail .more-btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(8px,env(safe-area-inset-right,0px)) max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) max(8px,env(safe-area-inset-left,0px))}
   .rail .ball,.rail .spacer{display:none}
   .rail nav{flex-direction:row;justify-content:space-between}

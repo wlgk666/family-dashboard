@@ -77,6 +77,7 @@
     const sec = v === "allchat" ? "board" : v; // 온가족방 uses the same chat screen
     if (sec === "board") { room = v === "allchat" ? "all" : "home"; renderMsgs(); }
     $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== sec);
+    if (sec === "board") requestAnimationFrame(chatToEnd); // 숨겨진 상태에선 스크롤이 안 되므로, 화면이 보인 뒤 맨 아래(최근 글)로
     $$("#nav a, #more-sheet a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
     const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
     const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
@@ -515,6 +516,7 @@
           b.classList.remove("photo"); b.classList.add("expired"); b.append(el("span","t", "📷 사진 보관 기간(7일)이 지났어요" + (mg.text ? "\n" + mg.text : "")));
         } else if (mg.photo) {
           const im = el("img"); im.alt = `${m ? m.name : "가족"}이 보낸 사진`; im.decoding = "async";
+          im.onload = () => { box.scrollTop = box.scrollHeight; }; // 사진이 늦게 뜨며 밀려난 최근 글이 다시 보이게
           db && db.getPhoto(mg.photo).then(src => { if (src) im.src = src; else { im.replaceWith(el("span","t","📷 사진이 지워졌어요")); } });
           im.onclick = () => { if (!im.src) return; $("photo-big").src = im.src; $("photo-view").hidden = false; };
           b.append(im);
@@ -535,6 +537,7 @@
       box.scrollTop = box.scrollHeight;
     });
   }
+  function chatToEnd() { const b = $("board-msgs"); if (b) b.scrollTop = b.scrollHeight; }
   const PHOTO_DAYS = 7;
   // photos: one hidden file input; on iPhone/iPad it offers 사진 보관함 / 사진 찍기 / 파일 선택
   async function shrinkPhoto(file, max = 1280) {
