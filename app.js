@@ -326,13 +326,13 @@
 
   // ---------- 수다방 (family chat) ----------
   const STICKERS = ["💖","😆","👍","🥹","🎉","😴","🍗","⚾","🐱","🌈"];
-  function sendMsg(text, sticker) {
+  function sendMsg(text, sticker, photo) {
     if (!ready()) return Promise.resolve();
-    return db.collection("messages").add({ text, sticker: !!sticker, by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
-      const w = member(me); notify({ except: me || "", title: `💬 ${w ? w.name : "가족"}`, body: text, url: "./#board", tag: "chat" });
+    return db.collection("messages").add({ text, sticker: !!sticker, photo: photo || "", by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
+      const w = member(me); notify({ except: me || "", title: `💬 ${w ? w.name : "가족"}`, body: photo ? "📷 사진을 보냈어요" + (text ? " · " + text : "") : text, url: "./#board", tag: "chat" });
       if (state.messages.length >= 150) {
         const old = [...state.messages].sort((a,b) => a.createdAt - b.createdAt).slice(0, state.messages.length - 149);
-        for (const o of old) await db.doc("messages/"+o.id).delete();
+        for (const o of old) { await db.doc("messages/"+o.id).delete(); if (o.photo) await db.doc("photo/"+o.photo).delete().catch(() => {}); }
       }
     }).catch(fail);
   }
@@ -358,16 +358,24 @@
         const col = el("div","chat-col");
         if (!mine && !cont) col.append(el("div","chat-name", m ? m.name : "가족"));
         const line = el("div","chat-line");
-        const b = el("div","chat-bubble" + (mg.sticker ? " sticker" : ""));
-        if (!mg.sticker && !mine && m) b.style.setProperty("--who", colorVar(m));
-        b.append(el("span","t", mg.text));
+        const b = el("div","chat-bubble" + (mg.sticker ? " sticker" : "") + (mg.photo ? " photo" : ""));
+        if (!mg.sticker && !mg.photo && !mine && m) b.style.setProperty("--who", colorVar(m));
+        if (mg.photo && Date.now() - mg.createdAt > PHOTO_DAYS * 864e5) {
+          b.classList.remove("photo"); b.classList.add("expired"); b.append(el("span","t", "📷 사진 보관 기간(7일)이 지났어요" + (mg.text ? "\n" + mg.text : "")));
+        } else if (mg.photo) {
+          const im = el("img"); im.alt = `${m ? m.name : "가족"}이 보낸 사진`; im.decoding = "async";
+          db && db.getPhoto(mg.photo).then(src => { if (src) im.src = src; else { im.replaceWith(el("span","t","📷 사진이 지워졌어요")); } });
+          im.onclick = () => { if (!im.src) return; $("photo-big").src = im.src; $("photo-view").hidden = false; };
+          b.append(im);
+          if (mg.text) b.append(el("span","t", mg.text));
+        } else b.append(el("span","t", mg.text));
         b.ondblclick = () => toggleHeart(mg);
         const side = el("div","chat-side");
         const hearts = (mg.hearts || []).length;
         const hb = el("button","heart" + ((mg.hearts||[]).includes(me) ? " on" : ""), hearts ? `♥ ${hearts}` : "♡");
         hb.type = "button"; hb.setAttribute("aria-label","하트 누르기"); hb.onclick = () => toggleHeart(mg);
         side.append(hb, el("span","chat-time", `${d.getHours() < 12 ? "오전" : "오후"} ${((d.getHours()+11)%12)+1}:${pad(d.getMinutes())}`));
-        if (mine) { const x = xBtn("메시지", del("messages", mg.id)); x.classList.add("chat-x"); side.append(x); }
+        if (mine) { const x = xBtn("메시지", del("messages", mg.id)); x.classList.add("chat-x"); if (mg.photo) { const d0 = x.onclick; x.onclick = e => { d0 && d0(e); db && db.doc("photo/"+mg.photo).delete().catch(() => {}); }; } side.append(x); }
         line.append(b, side);
         col.append(line); row.append(col); box.append(row);
         lastBy = mg.by;
@@ -376,6 +384,37 @@
       box.scrollTop = box.scrollHeight;
     });
   }
+  const PHOTO_DAYS = 7;
+  // photos: one hidden file input; on iPhone/iPad it offers 사진 보관함 / 사진 찍기 / 파일 선택
+  async function shrinkPhoto(file, max = 1280) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image(); img.src = url; await img.decode();
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      return { img: c.toDataURL("image/jpeg", 0.72), w: c.width, h: c.height };
+    } finally { URL.revokeObjectURL(url); }
+  }
+  let photoForm = null;
+  $$("form.chat-input").forEach(f => {
+    const pb = el("button","photo-btn","📷"); pb.type = "button"; pb.setAttribute("aria-label","사진 보내기");
+    pb.onclick = () => { if (!ready()) return; photoForm = f; $("photo-in").value = ""; $("photo-in").click(); };
+    f.prepend(pb);
+  });
+  $("photo-in").onchange = async () => {
+    const file = $("photo-in").files[0]; if (!file || !ready()) return;
+    const btns = $$(".photo-btn"); btns.forEach(b => b.disabled = true); toast("사진 올리는 중… 📷");
+    try {
+      const ph = await shrinkPhoto(file);
+      const { id } = await db.collection("photo").add({ ...ph, by: me || "", createdAt: Date.now() });
+      const inp = photoForm && photoForm.querySelector("input[type=text]"), cap = inp ? inp.value.trim() : "";
+      if (inp) inp.value = "";
+      await sendMsg(cap, false, id);
+    } catch (e) { console.error(e); toast("사진을 보내지 못했어요. 다시 해 주세요."); }
+    btns.forEach(b => b.disabled = false);
+  };
+  $("photo-view").onclick = () => { $("photo-view").hidden = true; };
   $$(".sticker-row").forEach(row => STICKERS.forEach(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기"); b.onclick = () => sendMsg(s, true); row.append(b); }));
 
   // ---------- family ----------
@@ -728,6 +767,7 @@
     NAMES.forEach(nm => state[nm] = pull(st, nm));
     if (n === 0 && !allowNew) return "empty";
     db = st; famKey = key; store("fam-key", key); renderAll(); syncPush();
+    st.cleanupPhotos(PHOTO_DAYS * 864e5).catch(() => {});
     return "ok";
   }
   function showGate(msg) {

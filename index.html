@@ -256,6 +256,15 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .stk{border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:22px;width:44px;height:40px;flex:none;line-height:1}
 .stk:hover{transform:translateY(-2px);border-color:var(--pink)}
 .chat-input input{border-radius:999px!important}
+.photo-btn{flex:0 0 auto;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:20px;display:grid;place-items:center;padding:0}
+.photo-btn:disabled{opacity:.5}
+.chat-bubble.photo{padding:4px;background:var(--surface);border:1px solid var(--line)}
+.chat-bubble.photo img{display:block;width:auto;height:auto;max-width:min(240px,58vw);max-height:300px;min-width:90px;min-height:90px;border-radius:12px;background:var(--tint);object-fit:cover;cursor:zoom-in}
+.chat-bubble.photo .t{display:block;padding:6px 8px 2px}
+.chat-bubble.expired{background:var(--tint)!important;color:var(--muted)!important;font-size:13px}
+.photo-view{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);display:grid;place-items:center;padding:16px}
+.photo-view img{max-width:100%;max-height:calc(100vh - 80px);border-radius:10px}
+.photo-view .sub{color:#fff;text-align:center;margin-top:10px}
 .chat-input .btn{border-radius:999px;background:var(--pink)}
 
 /* ---- 용돈 ---- */
@@ -522,8 +531,8 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
   <!-- BOARD -->
   <section class="view" data-view="board" hidden>
     <div class="card">
-      <div class="card-h"><h2>우리 가족 수다방 💬</h2><span class="chips"><button class="btn ghost noti-btn" type="button" hidden>🔔 알림 켜기</button><span class="pill" id="msg-count"></span></span></div>
-      <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요.</div>
+      <div class="card-h"><h2>우리 가족 수다방 💬</h2><span class="chips" style="flex-wrap:nowrap"><button class="btn ghost noti-btn" type="button" hidden aria-label="이 기기 알림 켜기" title="알림 켜기">🔔</button><span class="pill" id="msg-count"></span></span></div>
+      <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. 📷 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
       <div class="msgs chat tall" id="board-msgs"></div>
       <div class="sticker-row" aria-label="스티커"></div>
       <form class="add chat-input" data-form="msg"><input type="text" id="board-msg-in" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지"><button class="btn">보내기</button></form>
@@ -587,7 +596,9 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 
 <script src="vendor/supabase-2.58.0.js"></script>
 <script src="config.js?v=4"></script>
-<script src="store.js?v=4"></script>
-<script src="app.js?v=8"></script>
+<script src="store.js?v=6"></script>
+<div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
+<input type="file" id="photo-in" accept="image/*" hidden>
+<script src="app.js?v=10"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@
 
     async function fetchRows(col) {
       let q = sb.from("docs").select("col,id,data");
-      if (col) q = q.eq("col", col);
+      if (col) q = q.eq("col", col); else q = q.neq("col", "photo"); // photos are big: load them one by one when shown
       const { data, error } = await q.limit(5000);
       if (error) throw error;
       return data;
@@ -82,7 +82,25 @@
       };
     }
     const list = col => [...colMap(col)].map(([id, d]) => ({ id, ...d }));
-    return { doc, collection, list, loadAll, loadCol, family: fam };
+    const photos = new Map();
+    function getPhoto(id) {
+      if (!photos.has(id)) photos.set(id, (async () => {
+        const local = colMap("photo").get(id); if (local) return local.img;
+        const { data, error } = await sb.from("docs").select("data").eq("col", "photo").eq("id", id).limit(1);
+        if (error || !data.length) { photos.delete(id); return ""; }
+        return data[0].data.img;
+      })());
+      return photos.get(id);
+    }
+    // photos older than `ms` are deleted by whichever family device opens the app first
+    async function cleanupPhotos(ms) {
+      const { data, error } = await sb.from("docs").select("id,created:data->createdAt").eq("col", "photo").limit(5000);
+      if (error) return 0;
+      const old = data.filter(r => Number(r.created || 0) < Date.now() - ms);
+      for (const r of old) { await sb.from("docs").delete().eq("col", "photo").eq("id", r.id); photos.delete(r.id); }
+      return old.length;
+    }
+    return { doc, collection, list, loadAll, loadCol, getPhoto, cleanupPhotos, family: fam };
   }
   window.createFamilyStore = createFamilyStore;
 })();
