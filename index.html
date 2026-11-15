@@ -112,10 +112,17 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .d:hover{background:var(--tint)}
 .dots{display:flex;gap:2px;height:6px}
 .dot{width:5px;height:5px;border-radius:50%}
-.big .d{min-height:96px;align-items:stretch;padding:4px;text-align:left;border-top:1px solid var(--line);border-radius:0}
+.big .d{min-height:78px;align-items:stretch;padding:4px;text-align:left;border-top:1px solid var(--line);border-radius:0}
 .big .d .n{width:26px;height:26px;font-size:13px}
 .big .d .evs{display:flex;flex-direction:column;gap:2px;min-width:0}
 .big .d .ev{font-size:11px;border-radius:4px;padding:1px 4px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 넓은 화면: 달력 왼쪽, 선택한 날 일정·일정 추가는 오른쪽 */
+.cal-layout{display:flex;flex-direction:column;gap:16px}
+@media (min-width:1100px){
+  .cal-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,1fr);align-items:start}
+  .cal-layout>.grid-2{grid-template-columns:minmax(0,1fr)}
+  .cal-layout .evlist.tall{max-height:38vh;overflow-y:auto}
+}
 @media (max-width:640px){.big .d{min-height:60px}.big .d .ev{font-size:0;height:5px;padding:0}}
 
 .tabs{display:inline-flex;background:var(--tint);border-radius:12px;padding:3px;gap:2px}
@@ -426,6 +433,7 @@ body.simple #nav a{font-size:14px}
 
   <!-- CALENDAR -->
   <section class="view" data-view="calendar" hidden>
+    <div class="cal-layout">
     <div class="card">
       <div class="month-h">
         <button class="icon-btn" type="button" data-mnav="-1" aria-label="이전 달"><svg class="i"><use href="#i-left"/></svg></button>
@@ -453,6 +461,7 @@ body.simple #nav a{font-size:14px}
           <button class="btn ghost" type="button" id="ev-cancel" hidden>취소</button>
         </form>
       </div>
+    </div>
     </div>
   </section>
 
