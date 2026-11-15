@@ -1,7 +1,8 @@
 name: 아침 알림
 on:
   schedule:
-    - cron: "50 21 * * *"   # 매일 06:50 (한국 시간), GitHub 지연을 감안해 조금 일찍
+    - cron: "52 22 * * *"   # 매일 07:52 (한국 시간). GitHub가 보통 몇 분 늦게 돌려서 8시쯤 도착해요
+    - cron: "25 23 * * *"   # 혹시 첫 번째가 안 돌았을 때를 위한 예비 (하루 한 번만 보내도록 서버가 막아요)
   workflow_dispatch:
 jobs:
   morning:
