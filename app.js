@@ -750,7 +750,7 @@
   const shortHash = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].slice(0, 10).map(b => b.toString(16).padStart(2, "0")).join("");
   function notify(o) {
     if (!PUSH_URL || !db || !famKey) return;
-    fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey }, body: JSON.stringify(o) }).catch(() => {});
+    fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey, "x-region": "ap-northeast-2" }, body: JSON.stringify(o) }).catch(() => {});
   }
   async function saveSub(sub) {
     const id = await shortHash(sub.endpoint), ua = navigator.userAgent;
@@ -801,7 +801,7 @@
   // ---------- 네이버 캘린더 가져오기 (server does the work; the password never comes back to the browser) ----------
   let nvState = null;
   async function naverCall(action, extra = {}) {
-    const r = await fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey }, body: JSON.stringify({ action, ...extra }) });
+    const r = await fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey, "x-region": "ap-northeast-2" }, body: JSON.stringify({ action, ...extra }) });
     return r.json();
   }
   const agoLabel = t => t ? ago(t) : "아직";
