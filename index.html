@@ -219,10 +219,15 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 
 /* phones: rail becomes a bottom bar */
 @media (max-width:760px){
-  .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+  .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(8px,env(safe-area-inset-right,0px)) max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) max(8px,env(safe-area-inset-left,0px))}
   .rail .ball,.rail .spacer{display:none}
   .rail nav{flex-direction:row;justify-content:space-between}
-  .rail a{flex:1;padding:6px 0;font-size:10px;border-radius:10px}
+  .rail a,.rail .more-btn{flex:1;padding:7px 0 6px;font-size:12px;border-radius:12px;min-width:0}
+  #nav a.more-item{display:none}
+  .rail .more-btn{display:flex}
+  body.simple #nav a.more-item[data-v="allchat"],body.simple #nav a.more-item[data-v="money"]{display:flex}
+  body.simple .rail .more-btn{display:none}
+  .main{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))!important}
   .main{margin-left:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
   .brand h1{font-size:28px}
 }
@@ -317,7 +322,13 @@ body.simple #nav a{font-size:14px}
 }
 @keyframes popin{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@media (max-width:760px){.rail a{font-size:9.5px}}
+.more-btn{display:none;flex-direction:column;align-items:center;gap:2px;border:0;background:transparent;color:inherit;font:inherit;opacity:.78;cursor:pointer}
+.more-btn[aria-expanded="true"],.more-btn.on{opacity:1;background:var(--surface);color:var(--brand);font-weight:700}
+.more-btn svg{fill:currentColor;stroke:none}
+.more-sheet{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) + 70px);z-index:31;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 12px 40px rgb(0 0 0 / .25);padding:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.more-sheet[hidden]{display:none}
+.more-sheet a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:14px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;background:var(--tint)}
+.more-sheet a[aria-current="page"]{background:var(--navy);color:#fff}
 </style>
 </head>
 <body>
@@ -345,18 +356,20 @@ body.simple #nav a{font-size:14px}
   <symbol id="w-thunder" viewBox="0 0 24 24"><path d="M7 15a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.6 1.5A3.3 3.3 0 0 1 17 15z"/><path d="M12 14l-2 4h3l-2 4"/></symbol>
 </svg>
 
+<div class="more-sheet" id="more-sheet" hidden></div>
 <aside class="rail" aria-label="메뉴">
   <div class="ball" aria-hidden="true"></div>
   <nav id="nav">
     <a href="#home" data-v="home"><svg class="i"><use href="#i-home"/></svg>홈</a>
     <a href="#calendar" data-v="calendar"><svg class="i"><use href="#i-cal"/></svg>일정</a>
     <a href="#board" data-v="board"><svg class="i"><use href="#i-chat"/></svg>수다방</a>
-    <a href="#allchat" data-v="allchat"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
-    <a href="#diary" data-v="diary"><svg class="i"><use href="#i-book"/></svg>일기</a>
+    <a href="#allchat" data-v="allchat" class="more-item"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
+    <a href="#diary" data-v="diary" class="more-item"><svg class="i"><use href="#i-book"/></svg>일기</a>
     <a href="#todo" data-v="todo"><svg class="i"><use href="#i-check"/></svg>할 일</a>
-    <a href="#school" data-v="school"><svg class="i"><use href="#i-bag"/></svg>학교생활</a>
-    <a href="#money" data-v="money"><svg class="i"><use href="#i-coin"/></svg>용돈</a>
-    <a href="#family" data-v="family"><svg class="i"><use href="#i-people"/></svg>가족</a>
+    <a href="#school" data-v="school" class="more-item"><svg class="i"><use href="#i-bag"/></svg>학교생활</a>
+    <a href="#money" data-v="money" class="more-item"><svg class="i"><use href="#i-coin"/></svg>용돈</a>
+    <a href="#family" data-v="family" class="more-item"><svg class="i"><use href="#i-people"/></svg>가족</a>
+      <button type="button" class="more-btn" id="more-btn" aria-expanded="false" aria-controls="more-sheet"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>더보기</button>
   </nav>
 </aside>
 
@@ -624,6 +637,6 @@ body.simple #nav a{font-size:14px}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

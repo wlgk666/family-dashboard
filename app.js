@@ -62,10 +62,20 @@
     const sec = v === "allchat" ? "board" : v; // 온가족방 uses the same chat screen
     if (sec === "board") { room = v === "allchat" ? "all" : "home"; renderMsgs(); }
     $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== sec);
-    $$("#nav a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+    $$("#nav a, #more-sheet a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+    const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
+    const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
     window.scrollTo(0,0);
   }
   addEventListener("hashchange", route);
+  // phones: 4 main tabs + 더보기 sheet with the rest
+  (() => {
+    const sheet = document.getElementById("more-sheet"), btn = document.getElementById("more-btn");
+    document.querySelectorAll("#nav a.more-item").forEach(a => sheet.append(a.cloneNode(true)));
+    btn.onclick = e => { e.stopPropagation(); const open = sheet.hidden; sheet.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
+    sheet.onclick = e => { if (e.target.closest("a")) { sheet.hidden = true; btn.setAttribute("aria-expanded","false"); } };
+    document.addEventListener("click", e => { if (!sheet.hidden && !sheet.contains(e.target) && e.target !== btn) { sheet.hidden = true; btn.setAttribute("aria-expanded","false"); } });
+  })();
 
   // ---------- header ----------
   function renderFilter() {
