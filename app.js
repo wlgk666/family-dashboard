@@ -189,7 +189,7 @@
       b.append(document.createTextNode("일기장이 잠겨 있어요. "), a); hl.append(b);
       $("home-more").href = "#diary"; $("home-add").hidden = true;
     } else {
-      const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt).slice(0,5);
+      const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort(newestDiary).slice(0,5);
       $("home-sub").textContent = `최근 일기 ${list.length}편`;
       list.forEach(d => hl.append(diaryCard(d, false)));
       if (!list.length) hl.append(el("div","empty","아직 쓴 일기가 없어요. 일기 메뉴에서 오늘 하루를 남겨 보세요."));
@@ -373,6 +373,8 @@
   }
 
   // ---------- diary ----------
+  // 가장 최근에 쓴 일기가 맨 위, 예전 글은 아래로 (날짜를 지난 날로 골라 써도 쓴 순서대로)
+  const newestDiary = (a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.date || "").localeCompare(a.date || "");
   function diaryCard(d, withDel) {
     const c = el("div","diary"), m = member(d.by);
     const hd = el("div","hd"); hd.append(avatar(m,true));
@@ -454,7 +456,7 @@
     renderLockRow();
     const mb = $("di-mood"); mb.replaceChildren();
     MOODS.forEach(([n]) => { const b = el("button","chip t", n); b.type = "button"; b.setAttribute("aria-pressed", String(diMood===n)); b.onclick = () => { diMood = n; renderDiary(); }; mb.append(b); });
-    const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt);
+    const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort(newestDiary);
     $("di-count").textContent = `${list.length}편`;
     const box = $("di-list"); box.replaceChildren();
     list.forEach(d => box.append(diaryCard(d, true)));
@@ -670,7 +672,7 @@
   $("f-di").addEventListener("submit", guard(async () => {
     const text = $("di-text").value.trim(); if (!text) return;
     await db.collection("diary").add({ text, date: $("di-date").value || todayStr(), mood: diMood, by: me || "", createdAt: Date.now() });
-    $("di-text").value = ""; toast("일기를 저장했어요");
+    $("di-text").value = ""; $("di-list").scrollTop = 0; toast("일기를 저장했어요");
   }));
   $("f-mem").addEventListener("submit", guard(async () => {
     const name = $("mem-name").value.trim(); if (!name) return;
@@ -1093,7 +1095,7 @@
   setInterval(() => { if (db && !document.hidden) db.loadAll().catch(console.error); }, 60000);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r => r.update()).catch(() => {});
   // 새 버전이 올라오면 앱을 열 때 저절로 새로고침 (홈 화면 앱이 옛날 화면에 머무르지 않게)
-  const APP_VERSION = "23";
+  const APP_VERSION = "24";
   async function checkVersion() {
     try {
       const v = await (await fetch("version.json?t=" + Date.now(), { cache: "no-store" })).json();
