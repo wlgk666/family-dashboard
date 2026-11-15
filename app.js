@@ -561,6 +561,8 @@
   $$('form[data-form="shop"]').forEach(f => f.addEventListener("submit", guard(async form => {
     const inp = form.querySelector("input"), item = inp.value.trim(); if (!item) return; inp.value = "";
     await db.collection("shopping").add({ item, done: false, by: me || "", createdAt: Date.now() });
+    { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
+      notify({ to: adults, except: me || "", title: "🛒 사 주세요!", body: `${w ? w.name : "가족"}: ${item}`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
@@ -802,10 +804,10 @@
     $$(".noti-btn").forEach(b => { b.hidden = on || !db; b.onclick = enablePush; });
     const st = $("push-status"); if (!st) return;
     const blocked = "Notification" in window && Notification.permission === "denied";
-    st.textContent = on ? "이 기기는 알림을 받고 있어요. 수다방 새 글과 용돈 입금을 앱이 꺼져 있어도 알려 줘요."
+    st.textContent = on ? "이 기기는 알림을 받고 있어요. 매일 아침 오늘 일정·할 일, 용돈 입금, 사 주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요."
       : blocked ? "알림이 막혀 있어요. 아이폰·아이패드 설정 → 알림 → 오니가족에서 ‘알림 허용’을 켜 주세요."
       : !pushOK() && isApple() && !isStandalone() ? "Safari에서 공유 → 홈 화면에 추가한 뒤, 홈 화면의 오니가족 아이콘으로 열어서 켜 주세요."
-      : "버튼을 누르면 수다방 새 글과 용돈 입금을 앱이 꺼져 있어도 알려 줘요.";
+      : "버튼을 누르면 매일 아침 오늘 일정·할 일, 용돈 입금, 사 주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요.";
   }
 
   // ---------- 네이버 캘린더 가져오기 (server does the work; the password never comes back to the browser) ----------

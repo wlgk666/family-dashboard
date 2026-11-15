@@ -76,11 +76,12 @@ export async function handler(req) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
     if (req.method === "GET") return json({ publicKey: (await getVapid()).publicKey });
+    const b = await req.json().catch(() => ({}));
+    if (b.action === "morning") return json(await morningDigest(!!b.dry));
     const key = req.headers.get("x-family-key") || "";
     if (key.length < 4) return json({ error: "no key" }, 401);
     const fam = await sha256hex(key);
     if (!(await rows(`family=eq.${fam}&col=eq.members&select=id&limit=1`)).length) return json({ error: "unknown family" }, 403);
-    const b = await req.json().catch(() => ({}));
     if (typeof b.action === "string" && b.action.startsWith("naver-")) return json(await naverAction(fam, b));
     const to = Array.isArray(b.to) ? b.to.map(String) : null, except = String(b.except || "");
     const payload = JSON.stringify({ title: String(b.title || "오니가족🩷").slice(0, 80), body: String(b.body || "").slice(0, 200), url: String(b.url || "./").slice(0, 60), tag: String(b.tag || "").slice(0, 40) });
@@ -98,6 +99,37 @@ export async function handler(req) {
   } catch (e) {
     return json({ error: String(e && e.message || e) }, 500);
   }
+}
+
+// ======================= 매일 아침 알림: 오늘 일정 + 할 일 =======================
+// GitHub Actions 가 매일 아침 7시(한국)쯤 부르면, 알림을 켠 가족 기기마다 그 사람의 오늘 일정·할 일을 보내요.
+// 하루에 한 번만 돌도록 "__vapid" 행에 날짜를 남겨서, 누가 여러 번 불러도 알림이 겹치지 않아요.
+async function morningDigest(dry) {
+  const now = Date.now(), today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
+  const guard = (await rows("family=eq.__vapid&col=eq.cfg&id=eq.morning&select=data"))[0];
+  if (!dry && guard && guard.data.day === today) return { skipped: true, day: today };
+  if (!dry) await rest("docs?on_conflict=family,col,id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ family: "__vapid", col: "cfg", id: "morning", data: { day: today, at: now } }) });
+  const subs = await rows("col=eq.push&select=family,id,data&limit=2000");
+  const fams = [...new Set(subs.map((r) => r.family))];
+  const vapid = await getVapid(); let sent = 0; const preview = [];
+  const kstDay = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
+  for (const fam of fams) {
+    const all = await rows(`family=eq.${fam}&col=in.(members,events,chores)&select=col,id,data&limit=5000`);
+    const members = all.filter((r) => r.col === "members"), events = all.filter((r) => r.col === "events").map((r) => r.data), chores = all.filter((r) => r.col === "chores").map((r) => r.data);
+    for (const s of subs.filter((r) => r.family === fam && r.data && r.data.sub)) {
+      const m = members.find((x) => x.id === s.data.memberId); if (!m || m.data.kind === "grand") continue;
+      const evs = events.filter((e) => e.date === today && (!(e.memberIds || []).length || e.memberIds.includes(m.id))).sort((a, c) => (a.start || "99").localeCompare(c.start || "99"));
+      const todo = chores.filter((c) => (!c.memberId || c.memberId === m.id) && !(c.done && (!c.daily || kstDay(c.doneAt || 0) === today)));
+      if (!evs.length && !todo.length) continue;
+      const lines = [];
+      if (evs.length) lines.push("📅 " + evs.slice(0, 4).map((e) => (e.start ? e.start + " " : "") + e.title).join(", ") + (evs.length > 4 ? ` 외 ${evs.length - 4}개` : ""));
+      if (todo.length) lines.push(`✅ 할 일 ${todo.length}개: ` + todo.slice(0, 3).map((c) => c.title).join(", ") + (todo.length > 3 ? " …" : ""));
+      const payload = JSON.stringify({ title: `☀️ ${m.data.name}의 오늘`, body: lines.join("\n").slice(0, 200), url: "./#home", tag: "morning" });
+      if (dry) { preview.push({ evs: evs.length, todo: todo.length }); continue; }
+      try { const res = await sendPush(s.data.sub, payload, vapid); if (res.status === 201 || res.status === 200) sent++; if (res.status === 404 || res.status === 410) await rest(`docs?family=eq.${fam}&col=eq.push&id=eq.${encodeURIComponent(s.id)}`, { method: "DELETE" }); } catch (e) {}
+    }
+  }
+  return { ok: true, day: today, families: fams.length, sent, preview: dry ? preview : undefined };
 }
 
 // ======================= 네이버 캘린더 → 일정 (한 방향, 새 일정만 추가) =======================

@@ -1,0 +1,14 @@
+name: 아침 알림
+on:
+  schedule:
+    - cron: "50 21 * * *"   # 매일 06:50 (한국 시간), GitHub 지연을 감안해 조금 일찍
+  workflow_dispatch:
+jobs:
+  morning:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 오늘 일정·할 일 알림 보내기
+        run: |
+          curl -sS -X POST "https://tufmtipzfrynqavzpkvo.supabase.co/functions/v1/family-push" \
+            -H "content-type: application/json" -H "x-region: ap-northeast-2" \
+            -d '{"action":"morning"}'
