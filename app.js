@@ -54,7 +54,7 @@
   const sortEv = (a,b) => (a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99"));
 
   // ---------- routing ----------
-  const VIEWS = ["home","calendar","diary","todo","school","money","board","allchat","family"];
+  const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
   function route() {
     let v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
     if (isSimple() && v === "board") v = "allchat";
@@ -287,7 +287,7 @@
       const ul = el("ul","list"); open.slice(0,3).forEach(x => ul.append(choreRow(x)));
       if (!open.length) ul.append(el("li","empty", ch.length ? "오늘 할 일 끝! 잘했어요." : "아직 할 일이 없어요."));
       c.append(ul);
-      if (!isAdult(m)) {
+      if (false && !isAdult(m)) { // 학교생활(가정통신문)은 메뉴에서 뺐어요. 데이터는 남겨 둬요.
         c.append(el("hr","sep"));
         const ns = noticesOf(m.id), nOpen = ns.filter(x => !x.done);
         c.append(secHead("i-bag","가정통신문", `${nOpen.length}건`, "#school"));

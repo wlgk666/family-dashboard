@@ -325,7 +325,7 @@ body.simple #nav a{font-size:14px}
 .more-btn{display:none;flex-direction:column;align-items:center;gap:2px;border:0;background:transparent;color:inherit;font:inherit;opacity:.78;cursor:pointer}
 .more-btn[aria-expanded="true"],.more-btn.on{opacity:1;background:var(--surface);color:var(--brand);font-weight:700}
 .more-btn svg{fill:currentColor;stroke:none}
-.more-sheet{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) + 70px);z-index:31;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 12px 40px rgb(0 0 0 / .25);padding:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.more-sheet{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) + 70px);z-index:31;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 12px 40px rgb(0 0 0 / .25);padding:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .more-sheet[hidden]{display:none}
 .more-sheet a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:14px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;background:var(--tint)}
 .more-sheet a[aria-current="page"]{background:var(--navy);color:#fff}
@@ -366,7 +366,6 @@ body.simple #nav a{font-size:14px}
     <a href="#allchat" data-v="allchat" class="more-item"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
     <a href="#diary" data-v="diary" class="more-item"><svg class="i"><use href="#i-book"/></svg>일기</a>
     <a href="#todo" data-v="todo"><svg class="i"><use href="#i-check"/></svg>할 일</a>
-    <a href="#school" data-v="school" class="more-item"><svg class="i"><use href="#i-bag"/></svg>학교생활</a>
     <a href="#money" data-v="money" class="more-item"><svg class="i"><use href="#i-coin"/></svg>용돈</a>
     <a href="#family" data-v="family" class="more-item"><svg class="i"><use href="#i-people"/></svg>가족</a>
       <button type="button" class="more-btn" id="more-btn" aria-expanded="false" aria-controls="more-sheet"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>더보기</button>
@@ -637,6 +636,6 @@ body.simple #nav a{font-size:14px}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>
