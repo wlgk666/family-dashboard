@@ -20,18 +20,18 @@
   --m0:#cf1f2e; --m1:#1f4ea3; --m2:#2f93d1; --m3:#c08d12; --m4:#1d8a74; --m5:#7a4fb3;
   --f-display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
   --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-  --r:18px; --nav:96px; --brand:#0b2557; --today:#0b2557; --deep:#0b2557;
+  --veil:rgba(237,241,247,.8); --r:18px; --nav:96px; --brand:#0b2557; --today:#0b2557; --deep:#0b2557;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0a1222; --surface:#121c31; --tint:#1a2846; --ink:#e7edf7; --muted:#95a5bd; --line:#24324d;
   --navy:#081633; --navy-ink:#e7edf7; --red:#ff4d5a; --red-soft:#3a1820; --done:#56647a;
   --m0:#ff5a66; --m1:#6f9cf0; --m2:#5fbcef; --m3:#e5b443; --m4:#4cc3a6; --m5:#b18ae6;
-  --brand:#e7edf7; --today:#ff4d5a; --deep:#2c4f94; color-scheme:dark}}
+  --brand:#e7edf7; --today:#ff4d5a; --deep:#2c4f94; --veil:rgba(10,18,34,.74); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0a1222; --surface:#121c31; --tint:#1a2846; --ink:#e7edf7; --muted:#95a5bd; --line:#24324d;
   --navy:#081633; --navy-ink:#e7edf7; --red:#ff4d5a; --red-soft:#3a1820; --done:#56647a;
   --m0:#ff5a66; --m1:#6f9cf0; --m2:#5fbcef; --m3:#e5b443; --m4:#4cc3a6; --m5:#b18ae6;
-  --brand:#e7edf7; --today:#ff4d5a; --deep:#2c4f94; color-scheme:dark}
+  --brand:#e7edf7; --today:#ff4d5a; --deep:#2c4f94; --veil:rgba(10,18,34,.74); color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;font-size:14px}
 [hidden]{display:none!important}
@@ -39,6 +39,8 @@ img{max-width:100%}
 :root{padding-top:env(safe-area-inset-top,0px)}
 html,body{min-height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+/* faded Giants night photo behind everything; fixed layer so it also works on iPhone/iPad */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(var(--veil),var(--veil)),url(img/bg-giants.jpg) center 45%/cover no-repeat}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--red);outline-offset:2px}
