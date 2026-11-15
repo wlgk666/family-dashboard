@@ -174,7 +174,7 @@
       if (wx.tip) w.append(el("div","small", "옷차림 추천: " + wx.tip));
     } else {
       w.append(el("div","big-t","날씨 준비 중"));
-      w.append(el("div","small","하루 세 번(아침·점심·저녁) 자동으로 채워져요."));
+      w.append(el("div","small","날씨를 불러오는 중이에요. 잠시 후 다시 확인해 주세요."));
     }
     const t = todayStr(), games = state.events.filter(e => e.game && e.date >= t).sort(sortEv);
     if (games.length) { const g = games[0]; w.append(el("div","w-game", `⚾ 직관 ${relDay(g.date)} · ${g.title}${g.start ? " " + g.start : ""}`)); }
