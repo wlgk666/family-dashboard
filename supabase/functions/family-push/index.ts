@@ -110,22 +110,27 @@ const xmlDecode = (s) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(
 const tagRe = (name, flags = "") => new RegExp(`<(?:[\\w-]+:)?${name}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>`, flags);
 const firstHref = (xml, inside) => { const m = xml.match(tagRe(inside)); const h = m && m[1].match(tagRe("href")); return h ? xmlDecode(h[1].trim()) : ""; };
 
+let davTrace = [];
 async function dav(method, url, auth, body, depth = "0") {
-  const r = await fetch(url, { method, redirect: "follow", headers: { Authorization: auth, Depth: depth, "Content-Type": "application/xml; charset=utf-8" }, body });
+  const r = await fetch(url, { method, redirect: "follow", headers: { Authorization: auth, Depth: depth, "Content-Type": "application/xml; charset=utf-8", "User-Agent": "Mozilla/5.0 (family-dashboard CalDAV)" }, body });
   const text = await r.text();
+  davTrace.push(`${method} ${url.replace(CALDAV, "")} -> ${r.status} ${text.replace(/\s+/g, " ").slice(0, 300)}`);
   if (r.status === 401 || r.status === 403) throw new Error("login");
   if (r.status >= 400) throw new Error(`${method} ${r.status}`);
   return text;
 }
-async function naverCalendars(auth) {
+async function naverCalendars(auth, user = "") {
   const P = (props) => `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop>${props}</d:prop></d:propfind>`;
   let principal = "";
-  for (const u of [CALDAV + "/", CALDAV + "/.well-known/caldav"]) {
+  for (const u of [CALDAV + "/", CALDAV + "/.well-known/caldav", CALDAV + "/principals/", user && `${CALDAV}/principals/users/${user}/`].filter(Boolean)) {
     try { principal = firstHref(await dav("PROPFIND", u, auth, P("<d:current-user-principal/>")), "current-user-principal"); } catch (e) { if (e.message === "login") throw e; }
     if (principal) break;
   }
+  if (!principal && user) principal = `/principals/users/${user}/`;
   if (!principal) throw new Error("no principal");
-  const home = firstHref(await dav("PROPFIND", new URL(principal, CALDAV).href, auth, P("<c:calendar-home-set/>")), "calendar-home-set");
+  let home = "";
+  try { home = firstHref(await dav("PROPFIND", new URL(principal, CALDAV).href, auth, P("<c:calendar-home-set/>")), "calendar-home-set"); } catch (e) { if (e.message === "login") throw e; }
+  if (!home && user) home = `/calendar/users/${user}/`;
   if (!home) throw new Error("no calendar home");
   const list = await dav("PROPFIND", new URL(home, CALDAV).href, auth, P("<d:resourcetype/><d:displayname/>"), "1");
   const out = [];
@@ -226,7 +231,7 @@ async function naverSync(fam, cfg) {
   const auth = basic(cfg.id, cfg.pw), now = Date.now();
   const kst = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
   const fromStr = kst(now - 864e5), toStr = kst(now + 180 * 864e5);
-  const cals = await naverCalendars(auth);
+  const cals = await naverCalendars(auth, cfg.id);
   const ics = []; for (const c of cals) ics.push(...await naverEvents(auth, c, new Date(now - 2 * 864e5), new Date(now + 181 * 864e5)));
   const found = icsToBoardEvents(ics, fromStr, toStr);
   const seen = new Set(cfg.seen || []), fresh = [];
@@ -246,7 +251,8 @@ async function naverAction(fam, b) {
   if (b.action === "naver-save") {
     const id = String(b.id || "").trim().replace(/@naver\.com$/i, ""), pw = String(b.pw || "").trim();
     if (!id || !pw) return { error: "아이디와 앱 비밀번호를 넣어 주세요." };
-    try { await naverCalendars(basic(id, pw)); } catch (e) { return { error: e.message === "login" ? "네이버 로그인이 안 돼요. 아이디와 앱 비밀번호를 다시 확인해 주세요." : "네이버 캘린더에 연결하지 못했어요. (" + e.message + ")" }; }
+    davTrace = [];
+    try { await naverCalendars(basic(id, pw), id); console.log("naver ok", davTrace.join(" | ").slice(0, 1500)); } catch (e) { console.error("naver connect failed:", e.message, davTrace.join(" | ").slice(0, 3000)); return { error: e.message === "login" ? "네이버 로그인이 안 돼요. 아이디와 앱 비밀번호를 다시 확인해 주세요." : "네이버 캘린더에 연결하지 못했어요. (" + e.message + ")" }; }
     // 처음 연결할 때 이미 있던 seen 은 유지 (다시 연결해도 지운 일정이 되살아나지 않게)
     const next = { id, pw, memberId: String(b.memberId || "").slice(0, 40), seen: cfg ? cfg.seen || [] : [], lastSync: 0 };
     await saveNaverRow(fam, next);
