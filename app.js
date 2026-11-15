@@ -902,6 +902,16 @@
   })();
   document.addEventListener("visibilitychange", () => { if (!document.hidden && db) { db.loadAll().catch(console.error); naverRefresh(false); } });
   setInterval(() => { if (db && !document.hidden) db.loadAll().catch(console.error); }, 60000);
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r => r.update()).catch(() => {});
+  // 새 버전이 올라오면 앱을 열 때 저절로 새로고침 (홈 화면 앱이 옛날 화면에 머무르지 않게)
+  const APP_VERSION = "21";
+  async function checkVersion() {
+    try {
+      const v = await (await fetch("version.json?t=" + Date.now(), { cache: "no-store" })).json();
+      if (v && v.v && v.v !== APP_VERSION && sessionStorage.getItem("fam-reloaded") !== v.v) { sessionStorage.setItem("fam-reloaded", v.v); location.reload(); }
+    } catch (e) {}
+  }
+  checkVersion();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVersion(); });
   setInterval(() => { renderCal(); loadWeather(); }, 30 * 60000);
 })();

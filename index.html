@@ -38,6 +38,12 @@ body{margin:0;font-size:14px}
 img{max-width:100%}
 :root{padding-top:env(safe-area-inset-top,0px)}
 html,body{min-height:100%}
+/* 휴대폰에서 좌우로 밀리지 않게: 화면 폭을 넘는 건 잘라요 */
+html,body{max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+.main,.view,.card{min-width:0;max-width:100%}
+input,select,textarea,button{max-width:100%}
+form.add input,form.add select{min-width:0}
+input[type="date"],input[type="time"]{min-width:0;-webkit-min-logical-width:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
 /* faded Giants night photo behind everything; fixed layer so it also works on iPhone/iPad */
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(var(--veil),var(--veil)),url(img/bg-giants.jpg) center 45%/cover no-repeat}
@@ -645,6 +651,6 @@ body.simple #nav a{font-size:14px}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

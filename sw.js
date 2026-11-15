@@ -1,6 +1,6 @@
 // Offline shell + notifications. Data always comes from Supabase.
-const CACHE = "dugout-v27";
-const SHELL = ["./", "index.html", "app.js?v=20", "store.js?v=6", "config.js?v=4", "manifest.webmanifest", "icons/giants-192.png", "img/bg-giants.jpg", "vendor/supabase-2.58.0.js"];
+const CACHE = "dugout-v28";
+const SHELL = ["./", "index.html", "app.js?v=21", "store.js?v=6", "config.js?v=4", "manifest.webmanifest", "icons/giants-192.png", "img/bg-giants.jpg", "vendor/supabase-2.58.0.js"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -12,6 +12,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
+  if (url.pathname.endsWith("version.json")) return; // always straight from the network
   e.respondWith(
     fetch(e.request, { cache: "no-cache" }).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
       .catch(() => caches.match(e.request).then(r => r || caches.match("index.html")))
