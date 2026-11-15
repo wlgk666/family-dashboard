@@ -143,10 +143,25 @@ async function naverCalendars(auth, user = "") {
 }
 const icsStamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
 async function naverEvents(auth, cal, from, to) {
-  const q = (expand) => `<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop>${expand ? `<c:calendar-data><c:expand start="${icsStamp(from)}" end="${icsStamp(to)}"/></c:calendar-data>` : "<c:calendar-data/>"}</d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="${icsStamp(from)}" end="${icsStamp(to)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`;
-  let xml;
-  try { xml = await dav("REPORT", cal, auth, q(true), "1"); } catch (e) { if (e.message === "login") throw e; xml = await dav("REPORT", cal, auth, q(false), "1"); }
-  return [...xml.matchAll(tagRe("calendar-data", "g"))].map((m) => xmlDecode(m[1]));
+  const H = `<?xml version="1.0" encoding="utf-8"?><c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">`;
+  const range = `<c:time-range start="${icsStamp(from)}" end="${icsStamp(to)}"/>`;
+  const tries = [
+    H + `<d:prop><d:getetag/><c:calendar-data><c:expand start="${icsStamp(from)}" end="${icsStamp(to)}"/></c:calendar-data></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT">${range}</c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`,
+    H + `<d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT">${range}</c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`,
+    H + `<d:prop><d:getetag/><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter></c:calendar-query>`,
+  ];
+  const grab = (xml) => [...xml.matchAll(tagRe("calendar-data", "g"))].map((m) => xmlDecode(m[1])).filter((x) => x.includes("BEGIN:VEVENT"));
+  for (const body of tries) {
+    try { const got = grab(await dav("REPORT", cal, auth, body, "1")); if (got.length) return got; } catch (e) { if (e.message === "login") throw e; }
+  }
+  // last resort: list the .ics files and fetch them with calendar-multiget
+  try {
+    const list = await dav("PROPFIND", cal, auth, `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:getcontenttype/></d:prop></d:propfind>`, "1");
+    const hrefs = [...list.matchAll(tagRe("href", "g"))].map((m) => xmlDecode(m[1].trim())).filter((h) => new URL(h, CALDAV).href !== cal).slice(0, 500);
+    if (!hrefs.length) return [];
+    const mg = `<?xml version="1.0" encoding="utf-8"?><c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop>${hrefs.map((h) => `<d:href>${h.replace(/&/g, "&amp;")}</d:href>`).join("")}</c:calendar-multiget>`;
+    return grab(await dav("REPORT", cal, auth, mg, "1"));
+  } catch (e) { if (e.message === "login") throw e; return []; }
 }
 
 // --- iCalendar parsing (enough for Naver) ---
@@ -228,12 +243,13 @@ const saveNaverRow = (fam, data) => rest("docs?on_conflict=family,col,id", { met
 const basic = (id, pw) => "Basic " + btoa(String.fromCharCode(...enc.encode(`${id}:${pw}`)));
 
 async function naverSync(fam, cfg) {
-  const auth = basic(cfg.id, cfg.pw), now = Date.now();
+  const auth = basic(cfg.id, cfg.pw), now = Date.now(); davTrace = [];
   const kst = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
   const fromStr = kst(now - 864e5), toStr = kst(now + 180 * 864e5);
   const cals = await naverCalendars(auth, cfg.id);
   const ics = []; for (const c of cals) ics.push(...await naverEvents(auth, c, new Date(now - 2 * 864e5), new Date(now + 181 * 864e5)));
   const found = icsToBoardEvents(ics, fromStr, toStr);
+  console.log("naver sync", JSON.stringify({ calendars: cals.length, ics: ics.length, found: found.length }), davTrace.filter((t) => t.startsWith("REPORT") || t.startsWith("PROPFIND /calendar")).join(" | ").slice(0, 2500));
   const seen = new Set(cfg.seen || []), fresh = [];
   for (const f of found) { if (cfg.memberId) f.ev.memberIds = [cfg.memberId]; const h = (await sha256hex(f.key)).slice(0, 16); if (seen.has(h)) continue; seen.add(h); fresh.push({ family: fam, col: "events", id: "nv" + h, data: f.ev, updated_at: new Date().toISOString() }); }
   if (fresh.length) {
