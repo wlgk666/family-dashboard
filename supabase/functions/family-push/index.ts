@@ -50,8 +50,10 @@ export async function sendPush(sub, payload, vapid) {
 
 // ---------- database (service role, bypasses RLS) ----------
 const env = (k) => Deno.env.get(k) || "";
-const rest = (path, init = {}) => fetch(`${env("SUPABASE_URL")}/rest/v1/${path}`, { ...init, headers: {
-  apikey: env("SUPABASE_SERVICE_ROLE_KEY"), Authorization: `Bearer ${env("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json", ...(init.headers || {}) } });
+// service key: legacy JWT (SUPABASE_SERVICE_ROLE_KEY) or new secret key (SUPABASE_SECRET_KEYS = {"default":"sb_secret_..."})
+const serviceKey = () => { if (env("SUPABASE_SERVICE_ROLE_KEY")) return env("SUPABASE_SERVICE_ROLE_KEY"); try { return Object.values(JSON.parse(env("SUPABASE_SECRET_KEYS") || "{}"))[0] || ""; } catch (e) { return ""; } };
+const rest = (path, init = {}) => { const k = serviceKey(); return fetch(`${env("SUPABASE_URL")}/rest/v1/${path}`, { ...init, headers: {
+  apikey: k, ...(k.startsWith("eyJ") ? { Authorization: `Bearer ${k}` } : {}), "Content-Type": "application/json", ...(init.headers || {}) } }); };
 async function rows(q) { const r = await rest(`docs?${q}`); if (!r.ok) throw new Error("db " + r.status + " " + await r.text()); return r.json(); }
 
 let vapidCache = null;
