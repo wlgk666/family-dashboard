@@ -30,8 +30,14 @@
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const icon = (id, size) => { const s = document.createElementNS("http://www.w3.org/2000/svg","svg"); s.setAttribute("class","i"); if (size) s.style.cssText = `width:${size}px;height:${size}px`; const u = document.createElementNS("http://www.w3.org/2000/svg","use"); u.setAttribute("href","#"+id); s.append(u); return s; };
   const member = id => state.members.find(m => m.id === id);
-  const sortedMembers = () => [...state.members].sort((a,b) => ((a.kind==="parent")-(b.kind==="parent")) || ((a.createdAt||0)-(b.createdAt||0)));
-  const kids = () => sortedMembers().filter(m => m.kind !== "parent");
+  const isAdult = m => m.kind === "parent" || m.kind === "grand";
+  const KIND_LABEL = { parent: "어른", grand: "조부모", child: "아이" };
+  const kindLabel = m => KIND_LABEL[m.kind] || "아이";
+  const sortedMembers = () => [...state.members].sort((a,b) => (isAdult(a)-isAdult(b)) || ((a.kind==="grand")-(b.kind==="grand")) || ((a.createdAt||0)-(b.createdAt||0)));
+  const kids = () => sortedMembers().filter(m => !isAdult(m));
+  // 조부모 기기는 간단 화면: 일정 · 수다방 · 용돈 보내기만, 글씨 크게
+  const SIMPLE_VIEWS = ["calendar","allchat","money","family"];
+  const isSimple = () => { const m = state.members.find(x => x.id === me); return !!m && m.kind === "grand"; };
   const colorVar = m => `var(--m${((m && m.color) || 0) % COLORS})`;
   const avatar = (m, sm) => { const a = el("span","av"+(sm?" sm":""), m ? m.name.slice(0,1) : "전"); if (m) a.style.background = colorVar(m); else a.classList.add("all"); a.title = m ? m.name : "가족 전체"; return a; };
   const who = e => Array.isArray(e.memberIds) ? e.memberIds : (e.memberId ? [e.memberId] : []);
@@ -48,10 +54,14 @@
   const sortEv = (a,b) => (a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99"));
 
   // ---------- routing ----------
-  const VIEWS = ["home","calendar","diary","todo","school","money","board","family"];
+  const VIEWS = ["home","calendar","diary","todo","school","money","board","allchat","family"];
   function route() {
-    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
-    $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== v);
+    let v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    if (isSimple() && v === "board") v = "allchat";
+    if (isSimple() && !SIMPLE_VIEWS.includes(v)) v = "calendar";
+    const sec = v === "allchat" ? "board" : v; // 온가족방 uses the same chat screen
+    if (sec === "board") { room = v === "allchat" ? "all" : "home"; renderMsgs(); }
+    $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== sec);
     $$("#nav a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
     window.scrollTo(0,0);
   }
@@ -222,9 +232,9 @@
   function jersey(m) {
     const j = el("div","jersey");
     const n = el("div","num", m.number != null && m.number !== "" ? m.number : m.name.slice(0,1)); n.style.color = colorVar(m);
-    const w = el("div","who"); w.append(el("strong",null,m.name), el("span",null, (m.kind==="parent"?"어른":"아이") + (m.id===me ? " · 이 기기" : "")));
+    const w = el("div","who"); w.append(el("strong",null,m.name), el("span",null, kindLabel(m) + (m.id===me ? " · 이 기기" : "")));
     j.append(n, w);
-    if (m.kind !== "parent") { const b = el("a","jbal"); b.href = "#money"; b.append(el("span",null,"용돈"), el("strong",null, won(balanceOf(m.id)))); j.append(b); }
+    if (!isAdult(m)) { const b = el("a","jbal"); b.href = "#money"; b.append(el("span",null,"용돈"), el("strong",null, won(balanceOf(m.id)))); j.append(b); }
     return j;
   }
   function choreRow(c) {
@@ -263,7 +273,7 @@
       const ul = el("ul","list"); open.slice(0,3).forEach(x => ul.append(choreRow(x)));
       if (!open.length) ul.append(el("li","empty", ch.length ? "오늘 할 일 끝! 잘했어요." : "아직 할 일이 없어요."));
       c.append(ul);
-      if (m.kind !== "parent") {
+      if (!isAdult(m)) {
         c.append(el("hr","sep"));
         const ns = noticesOf(m.id), nOpen = ns.filter(x => !x.done);
         c.append(secHead("i-bag","가정통신문", `${nOpen.length}건`, "#school"));
@@ -326,12 +336,20 @@
 
   // ---------- 수다방 (family chat) ----------
   const STICKERS = ["💖","😆","👍","🥹","🎉","😴","🍗","⚾","🐱","🌈"];
-  function sendMsg(text, sticker, photo) {
+  // 두 개의 방: "home" = 우리 넷, "all" = 할머니·할아버지까지 온 가족. 조부모 기기는 "all" 만 봐요.
+  let room = "home";
+  const curRoom = () => isSimple() ? "all" : room;
+  const roomOf = mg => mg.room === "all" ? "all" : "home";
+  const roomFor = node => node && node.closest('[data-view="board"]') ? curRoom() : "home";
+  function sendMsg(text, sticker, photo, rm) {
     if (!ready()) return Promise.resolve();
-    return db.collection("messages").add({ text, sticker: !!sticker, photo: photo || "", by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
-      const w = member(me); notify({ except: me || "", title: `💬 ${w ? w.name : "가족"}`, body: photo ? "📷 사진을 보냈어요" + (text ? " · " + text : "") : text, url: "./#board", tag: "chat" });
-      if (state.messages.length >= 150) {
-        const old = [...state.messages].sort((a,b) => a.createdAt - b.createdAt).slice(0, state.messages.length - 149);
+    const r = rm === "all" ? "all" : "home";
+    return db.collection("messages").add({ text, sticker: !!sticker, photo: photo || "", room: r, by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
+      const w = member(me), to = r === "all" ? null : state.members.filter(m => m.kind !== "grand").map(m => m.id);
+      notify({ to, except: me || "", title: `${r === "all" ? "💞 온 가족" : "🏠 우리집"} · ${w ? w.name : "가족"}`, body: photo ? "📷 사진을 보냈어요" + (text ? " · " + text : "") : text, url: r === "all" ? "./#allchat" : "./#board", tag: "chat-" + r });
+      const inRoom = state.messages.filter(m => roomOf(m) === r);
+      if (inRoom.length >= 150) {
+        const old = [...inRoom].sort((a,b) => a.createdAt - b.createdAt).slice(0, inRoom.length - 149);
         for (const o of old) { await db.doc("messages/"+o.id).delete(); if (o.photo) await db.doc("photo/"+o.photo).delete().catch(() => {}); }
       }
     }).catch(fail);
@@ -343,9 +361,13 @@
     db.doc("messages/"+mg.id).update({ hearts: [...h] }).catch(fail);
   }
   function renderMsgs() {
-    const list = [...state.messages].sort((a,b) => a.createdAt - b.createdAt);
+    const all = [...state.messages].sort((a,b) => a.createdAt - b.createdAt), cr = curRoom();
+    const list = all.filter(m => roomOf(m) === cr), homeList = all.filter(m => roomOf(m) === "home");
     $("msg-count").textContent = list.length ? `수다 ${list.length}개` : "";
-    [["home-msgs", list.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
+    $("board-title").textContent = cr === "all" ? "온 가족 수다방 💞" : "우리 가족 수다방 💬";
+    $$("#room-tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.room === cr)));
+    $("board-msg-in").placeholder = cr === "all" ? "할머니·할아버지께 한마디 💞" : "오늘 학교에서 무슨 일 있었어?";
+    [["home-msgs", homeList.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
       const box = $(id); box.replaceChildren();
       let lastDay = null, lastBy = null;
       l.forEach(mg => {
@@ -410,12 +432,13 @@
       const { id } = await db.collection("photo").add({ ...ph, by: me || "", createdAt: Date.now() });
       const inp = photoForm && photoForm.querySelector("input[type=text]"), cap = inp ? inp.value.trim() : "";
       if (inp) inp.value = "";
-      await sendMsg(cap, false, id);
+      await sendMsg(cap, false, id, roomFor(photoForm));
     } catch (e) { console.error(e); toast("사진을 보내지 못했어요. 다시 해 주세요."); }
     btns.forEach(b => b.disabled = false);
   };
   $("photo-view").onclick = () => { $("photo-view").hidden = true; };
-  $$(".sticker-row").forEach(row => STICKERS.forEach(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기"); b.onclick = () => sendMsg(s, true); row.append(b); }));
+  $$(".sticker-row").forEach(row => STICKERS.forEach(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기"); b.onclick = () => sendMsg(s, true, "", roomFor(row)); row.append(b); }));
+  $$("#room-tabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.room === "all" ? "#allchat" : "#board"; });
 
   // ---------- family ----------
   function renderFamily() {
@@ -430,8 +453,8 @@
       nm.onchange = () => { const v = nm.value.trim(); if (v && ready()) db.doc("members/"+m.id).update({ name: v }).catch(fail); };
       const sws = el("div","chips");
       for (let i = 0; i < COLORS; i++) { const s = el("button","sw"); s.type = "button"; s.style.background = `var(--m${i})`; s.setAttribute("aria-label",`색 ${i+1}`); s.setAttribute("aria-pressed", String((m.color||0)%COLORS===i)); s.onclick = () => ready() && db.doc("members/"+m.id).update({ color: i }).catch(fail); sws.append(s); }
-      const kind = el("button","chip t", m.kind === "parent" ? "어른" : "아이"); kind.type = "button"; kind.title = "눌러서 바꾸기";
-      kind.onclick = () => ready() && db.doc("members/"+m.id).update({ kind: m.kind === "parent" ? "child" : "parent" }).catch(fail);
+      const kind = el("button","chip t", kindLabel(m)); kind.type = "button"; kind.title = "눌러서 바꾸기 (아이 → 어른 → 조부모)";
+      kind.onclick = () => ready() && db.doc("members/"+m.id).update({ kind: m.kind === "parent" ? "grand" : m.kind === "grand" ? "child" : "parent" }).catch(fail);
       const mine = el("button","chip t", m.id === me ? "✓ 이 기기 주인" : "이 기기는 나"); mine.type = "button"; mine.setAttribute("aria-pressed", String(m.id === me));
       mine.onclick = () => { me = m.id; store("fam-me", me); renderAll(); syncPush(); toast(`이 기기는 이제 ${m.name}의 기기예요`); };
       const bells = state.push.filter(x => x.memberId === m.id).length;
@@ -460,6 +483,9 @@
   }
 
   function renderAll() {
+    const simple = isSimple(), wasSimple = document.body.classList.contains("simple");
+    document.body.classList.toggle("simple", simple);
+    if (simple !== wasSimple) route();
     $("today-date").textContent = fmtDay(todayStr());
     renderFilter(); renderWhoChips();
     fillSelect($("ch-who"), sortedMembers(), "누구든");
@@ -506,7 +532,7 @@
     await db.collection("shopping").add({ item, done: false, by: me || "", createdAt: Date.now() });
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
-    ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false);
+    ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
   }));
   $("sh-clear").onclick = async () => { if (!ready()) return; for (const s of state.shopping.filter(s => s.done)) { try { await db.doc("shopping/"+s.id).delete(); } catch(e) { fail(e); break; } } };
 

@@ -256,6 +256,16 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .stk{border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:22px;width:44px;height:40px;flex:none;line-height:1}
 .stk:hover{transform:translateY(-2px);border-color:var(--pink)}
 .chat-input input{border-radius:999px!important}
+/* 조부모 간단 화면 */
+.simple-only{display:none}
+.room-tabs{margin:2px 0 6px}
+.room-tabs .chip{font-size:14px;padding:6px 14px}
+body.simple .room-tabs{display:none}
+body.simple .simple-only{display:block}
+body.simple #nav a:not([data-v="calendar"]):not([data-v="allchat"]):not([data-v="money"]){display:none}
+body.simple .main{zoom:1.15}
+body.simple #f-init, body.simple #f-init + .sub, body.simple .card:has(#f-spend){display:none}
+body.simple #nav a{font-size:14px}
 .photo-btn{flex:0 0 auto;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:20px;display:grid;place-items:center;padding:0}
 .photo-btn:disabled{opacity:.5}
 .chat-bubble.photo{padding:4px;background:var(--surface);border:1px solid var(--line)}
@@ -340,6 +350,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
     <a href="#home" data-v="home"><svg class="i"><use href="#i-home"/></svg>홈</a>
     <a href="#calendar" data-v="calendar"><svg class="i"><use href="#i-cal"/></svg>일정</a>
     <a href="#board" data-v="board"><svg class="i"><use href="#i-chat"/></svg>수다방</a>
+    <a href="#allchat" data-v="allchat"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
     <a href="#diary" data-v="diary"><svg class="i"><use href="#i-book"/></svg>일기</a>
     <a href="#todo" data-v="todo"><svg class="i"><use href="#i-check"/></svg>할 일</a>
     <a href="#school" data-v="school"><svg class="i"><use href="#i-bag"/></svg>학교생활</a>
@@ -526,12 +537,14 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
       <div class="sub" style="margin:-4px 0 6px">처음 시작할 때 아이가 이미 가진 돈을 적으면 통장 잔액이 그 금액으로 맞춰져요. 알림이나 팝업은 뜨지 않아요.</div>
       <ul class="list lined" id="money-hist"></ul>
     </div>
+    <a class="simple-only sub" href="#family" style="text-align:center;padding:8px">⚙️ 가족 설정 (이 기기 주인 바꾸기)</a>
   </section>
 
   <!-- BOARD -->
   <section class="view" data-view="board" hidden>
     <div class="card">
-      <div class="card-h"><h2>우리 가족 수다방 💬</h2><span class="chips" style="flex-wrap:nowrap"><button class="btn ghost noti-btn" type="button" hidden aria-label="이 기기 알림 켜기" title="알림 켜기">🔔</button><span class="pill" id="msg-count"></span></span></div>
+      <div class="card-h"><h2 id="board-title">우리 가족 수다방 💬</h2><span class="chips" style="flex-wrap:nowrap"><button class="btn ghost noti-btn" type="button" hidden aria-label="이 기기 알림 켜기" title="알림 켜기">🔔</button><span class="pill" id="msg-count"></span></span></div>
+      <div class="chips room-tabs" id="room-tabs" role="group" aria-label="수다방 고르기"><button type="button" class="chip t" data-room="home">🏠 우리 넷</button><button type="button" class="chip t" data-room="all">💞 온 가족 (할머니·할아버지)</button></div>
       <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. 📷 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
       <div class="msgs chat tall" id="board-msgs"></div>
       <div class="sticker-row" aria-label="스티커"></div>
@@ -554,7 +567,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
       <form class="add" id="f-mem">
         <input id="mem-name" type="text" placeholder="이름 (예: 엄마, 하늘)" maxlength="12" required aria-label="이름">
         <input id="mem-num" type="number" min="0" max="99" placeholder="등번호" aria-label="등번호" style="width:96px">
-        <select id="mem-kind" aria-label="구분"><option value="child">아이</option><option value="parent">어른</option></select>
+        <select id="mem-kind" aria-label="구분"><option value="child">아이</option><option value="parent">어른</option><option value="grand">조부모 (간단 화면)</option></select>
         <button class="btn">등록</button>
       </form>
     </div>
@@ -599,6 +612,6 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
