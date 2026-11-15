@@ -831,7 +831,14 @@
     nvState = await naverCall("naver-status"); renderNaver();
   }));
   $("nv-sync").onclick = () => naverRefresh(true);
-  $("nv-off").onclick = async () => { if (!ready()) return; nvState = await naverCall("naver-off"); renderNaver(); toast("네이버 캘린더 연결을 끊었어요. 이미 가져온 일정은 그대로 남아요."); };
+  // 연결 끊기 = 자동 가져오기를 멈추고, 네이버에서 가져온 일정도 모두 지워요
+  $("nv-off").onclick = async () => {
+    if (!ready()) return;
+    nvState = await naverCall("naver-off"); renderNaver();
+    const nv = state.events.filter(e => e.src === "naver");
+    for (const e of nv) { try { await db.doc("events/" + e.id).delete(); } catch (x) { fail(x); break; } }
+    toast(`네이버 연결을 끊고 가져온 일정 ${nv.length}개를 지웠어요`);
+  };
 
   // ---------- connect ----------
   $("ev-date").value = todayStr(); $("di-date").value = todayStr();
