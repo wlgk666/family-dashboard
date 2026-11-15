@@ -402,13 +402,13 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
       <div class="card">
         <h2>일정 추가</h2>
         <form class="add" id="f-ev">
-          <input id="ev-title" type="text" placeholder="예: 사직 직관, 학교 독서 발표" required maxlength="80" aria-label="일정 내용">
+          <input id="ev-title" type="text" placeholder="예: 주일 예배, 피아노 학원, 사직 직관" required maxlength="80" aria-label="일정 내용">
           <input id="ev-date" type="date" required aria-label="날짜">
           <input id="ev-start" type="time" aria-label="시작 시간">
           <span class="sub">~</span>
           <input id="ev-end" type="time" aria-label="끝 시간">
           <div class="chips" style="flex-basis:100%"><span class="label">누가</span><span id="ev-who" class="chips"></span></div>
-          <div class="chips" style="flex-basis:100%"><span class="label">종류</span><button type="button" class="chip t" id="ev-game" aria-pressed="false">⚾ 야구 직관</button></div>
+          <div class="chips" style="flex-basis:100%"><span class="label">종류</span><span class="chips" id="ev-types"></span></div>
           <button class="btn">일정 추가</button>
         </form>
       </div>
@@ -569,6 +569,6 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 <script src="vendor/supabase-2.58.0.js"></script>
 <script src="config.js?v=4"></script>
 <script src="store.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

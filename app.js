@@ -9,7 +9,7 @@
   state.weather = [];
   const CFG = window.FAMILY_CONFIG || {};
   const won = n => "₩" + Math.round(n).toLocaleString("ko-KR");
-  let db = null, me = null, filter = "", selDay = null, homeTab = "ev", evGame = false, diMood = "안타";
+  let db = null, me = null, filter = "", selDay = null, homeTab = "ev", evType = "", diMood = "안타";
   const evWho = new Set();
   let cursor = new Date(); cursor.setDate(1);
 
@@ -39,6 +39,9 @@
   const del = (col,id) => () => ready() && db.doc(`${col}/${id}`).delete().catch(fail);
   const xBtn = (label, fn) => { const x = el("button","x","×"); x.type = "button"; x.setAttribute("aria-label", label + " 삭제"); x.onclick = fn; return x; };
   const timeLabel = e => e.start ? (e.end ? `${e.start}–${e.end}` : e.start) : "종일";
+  const EV_TYPES = [["game","⚾","직관","var(--red)"],["church","⛪","교회","var(--m5)"],["school","🏫","학교","var(--m1)"],["academy","📚","학원","var(--m4)"],["trip","✈️","여행","var(--m3)"]];
+  const typeOf = e => EV_TYPES.find(t => t[0] === (e.type || (e.game ? "game" : "")));
+  const evColor = e => { const t = typeOf(e); return t ? t[3] : (who(e).length === 1 ? colorVar(member(who(e)[0])) : "var(--deep)"); };
   const sortEv = (a,b) => (a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99"));
 
   // ---------- routing ----------
@@ -77,12 +80,12 @@
       b.append(el("span","n", d.getDate()));
       if (big) {
         const w = el("div","evs");
-        evs.slice(0,3).forEach(e => { const p = el("div","ev", (e.game?"⚾ ":"") + e.title); p.style.background = e.game ? "var(--red)" : (who(e).length === 1 ? colorVar(member(who(e)[0])) : "var(--deep)"); w.append(p); });
+        evs.slice(0,3).forEach(e => { const p = el("div","ev", (typeOf(e) ? typeOf(e)[1] + " " : "") + e.title); p.style.background = evColor(e); w.append(p); });
         if (evs.length > 3) w.append(el("div","meta",`+${evs.length-3}`));
         b.append(w);
       } else {
         const dots = el("span","dots");
-        evs.slice(0,4).forEach(e => { const dt = el("span","dot"); dt.style.background = e.game ? "var(--red)" : (who(e).length === 1 ? colorVar(member(who(e)[0])) : "var(--deep)"); dots.append(dt); });
+        evs.slice(0,4).forEach(e => { const dt = el("span","dot"); dt.style.background = evColor(e); dots.append(dt); });
         b.append(dots);
       }
       b.setAttribute("aria-label", `${fmtDay(s)}, 일정 ${evs.length}개`);
@@ -93,7 +96,7 @@
   function evRow(e, opts = {}) {
     const r = el("div","ev-row");
     r.append(el("span","rel", relDay(e.date)), el("span","tm", timeLabel(e)));
-    const tt = el("span","tt"); if (e.game) tt.append(el("span","badge","직관")); tt.append(document.createTextNode(e.title)); r.append(tt);
+    const tt = el("span","tt"); const ty = typeOf(e); if (ty) { const bd = el("span","badge", ty[1] + " " + ty[2]); bd.style.color = ty[3]; bd.style.background = `color-mix(in srgb, ${ty[3]} 14%, transparent)`; tt.append(bd); } tt.append(document.createTextNode(e.title)); r.append(tt);
     const st = el("span","stack"); const ids = who(e);
     (ids.length ? ids.map(member).filter(Boolean) : [null]).slice(0,4).forEach(m => st.append(avatar(m, true)));
     r.append(st);
@@ -134,7 +137,12 @@
   $("tab-ev").onclick = () => { homeTab = "ev"; renderCal(); };
   $("tab-di").onclick = () => { homeTab = "di"; renderCal(); };
   $("cal-clear").onclick = () => { selDay = null; renderCal(); };
-  $("ev-game").onclick = () => { evGame = !evGame; $("ev-game").setAttribute("aria-pressed", String(evGame)); };
+  function renderTypeChips() {
+    const box = $("ev-types"); box.replaceChildren();
+    EV_TYPES.forEach(([id, emo, label]) => { const b = el("button","chip t", `${emo} ${label}`); b.type = "button"; b.setAttribute("aria-pressed", String(evType === id));
+      b.onclick = () => { evType = evType === id ? "" : id; renderTypeChips(); }; box.append(b); });
+  }
+  renderTypeChips();
 
   function renderWhoChips() {
     const box = $("ev-who"); box.replaceChildren();
@@ -176,7 +184,7 @@
       w.append(el("div","big-t","날씨 준비 중"));
       w.append(el("div","small","날씨를 불러오는 중이에요. 잠시 후 다시 확인해 주세요."));
     }
-    const t = todayStr(), games = state.events.filter(e => e.game && e.date >= t).sort(sortEv);
+    const t = todayStr(), games = state.events.filter(e => (e.type === "game" || e.game) && e.date >= t).sort(sortEv);
     if (games.length) { const g = games[0]; w.append(el("div","w-game", `⚾ 직관 ${relDay(g.date)} · ${g.title}${g.start ? " " + g.start : ""}`)); }
     const foot = el("div","w-foot");
     const stale = wx && Date.now() - wx.updatedAt > 12 * 3600e3;
@@ -417,8 +425,8 @@
   const guard = fn => async ev => { ev.preventDefault(); if (!ready()) return; try { await fn(ev.currentTarget); } catch(e) { fail(e); } };
   $("f-ev").addEventListener("submit", guard(async () => {
     const title = $("ev-title").value.trim(), date = $("ev-date").value; if (!title || !date) return;
-    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], game: evGame, by: me || "", createdAt: Date.now() };
-    $("ev-title").value = ""; $("ev-start").value = ""; $("ev-end").value = "";
+    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], type: evType, game: evType === "game", by: me || "", createdAt: Date.now() };
+    $("ev-title").value = ""; $("ev-start").value = ""; $("ev-end").value = ""; evType = ""; renderTypeChips();
     await db.collection("events").add(data); toast("일정을 추가했어요");
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
