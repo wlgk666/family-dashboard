@@ -808,7 +808,7 @@
   function renderNaver() {
     const st = $("nv-status"), on = nvState && nvState.connected;
     $("f-nv").hidden = !!on; $("nv-off").hidden = !on; $("nv-sync").hidden = !on;
-    if (on) st.textContent = `${nvState.naverId} 님 네이버 캘린더와 연결돼 있어요. 마지막 확인: ${agoLabel(nvState.lastSync)}${nvState.lastAdded ? ` · 새 일정 ${nvState.lastAdded}개` : ""}${nvState.error ? " · ⚠️ " + (nvState.error === "login" ? "로그인이 풀렸어요. 연결 끊기 후 앱 비밀번호를 다시 넣어 주세요." : nvState.error) : ""}. 앱을 열 때 2시간마다 새 일정을 확인해요.`;
+    if (on) st.textContent = `${nvState.naverId} 님 네이버 캘린더와 연결돼 있어요. 가져온 일정은 ${member(nvState.memberId) ? member(nvState.memberId).name + "의" : "가족 전체"} 일정으로 들어가요. 마지막 확인: ${agoLabel(nvState.lastSync)}${nvState.lastAdded ? ` · 새 일정 ${nvState.lastAdded}개` : ""}${nvState.error ? " · ⚠️ " + (nvState.error === "login" ? "로그인이 풀렸어요. 연결 끊기 후 앱 비밀번호를 다시 넣어 주세요." : nvState.error) : ""}. 앱을 열 때 2시간마다 새 일정을 확인해요.`;
   }
   async function naverRefresh(force) {
     if (!db || !famKey || !PUSH_URL || isSimple()) return;
@@ -823,7 +823,7 @@
   $("f-nv").addEventListener("submit", guard(async () => {
     const id = $("nv-id").value.trim(), pw = $("nv-pw").value.trim(); if (!id || !pw) return;
     $("nv-status").textContent = "네이버에 연결하는 중…";
-    const r = await naverCall("naver-save", { id, pw });
+    const r = await naverCall("naver-save", { id, pw, memberId: member(me) ? me : "" });
     $("nv-pw").value = "";
     if (r.error) { toast(r.error); nvState = await naverCall("naver-status"); renderNaver(); if (!nvState.connected) $("nv-status").textContent = "⚠️ " + r.error; return; }
     if (r.added) await db.loadCol("events");

@@ -228,7 +228,7 @@ async function naverSync(fam, cfg) {
   const ics = []; for (const c of cals) ics.push(...await naverEvents(auth, c, new Date(now - 2 * 864e5), new Date(now + 181 * 864e5)));
   const found = icsToBoardEvents(ics, fromStr, toStr);
   const seen = new Set(cfg.seen || []), fresh = [];
-  for (const f of found) { const h = (await sha256hex(f.key)).slice(0, 16); if (seen.has(h)) continue; seen.add(h); fresh.push({ family: fam, col: "events", id: "nv" + h, data: f.ev, updated_at: new Date().toISOString() }); }
+  for (const f of found) { if (cfg.memberId) f.ev.memberIds = [cfg.memberId]; const h = (await sha256hex(f.key)).slice(0, 16); if (seen.has(h)) continue; seen.add(h); fresh.push({ family: fam, col: "events", id: "nv" + h, data: f.ev, updated_at: new Date().toISOString() }); }
   if (fresh.length) {
     const r = await rest("docs?on_conflict=family,col,id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates" }, body: JSON.stringify(fresh) });
     if (!r.ok) throw new Error("save " + r.status);
@@ -239,14 +239,14 @@ async function naverSync(fam, cfg) {
 
 async function naverAction(fam, b) {
   const cfg = await naverRow(fam);
-  if (b.action === "naver-status") return cfg ? { connected: true, naverId: cfg.id, lastSync: cfg.lastSync || 0, lastAdded: cfg.lastAdded || 0, calendars: cfg.calendars || 0, error: cfg.error || "" } : { connected: false };
+  if (b.action === "naver-status") return cfg ? { connected: true, naverId: cfg.id, memberId: cfg.memberId || "", lastSync: cfg.lastSync || 0, lastAdded: cfg.lastAdded || 0, calendars: cfg.calendars || 0, error: cfg.error || "" } : { connected: false };
   if (b.action === "naver-off") { await rest(`docs?family=eq.__naver&col=eq.cfg&id=eq.${fam}`, { method: "DELETE" }); return { connected: false }; }
   if (b.action === "naver-save") {
     const id = String(b.id || "").trim().replace(/@naver\.com$/i, ""), pw = String(b.pw || "").trim();
     if (!id || !pw) return { error: "아이디와 앱 비밀번호를 넣어 주세요." };
     try { await naverCalendars(basic(id, pw)); } catch (e) { return { error: e.message === "login" ? "네이버 로그인이 안 돼요. 아이디와 앱 비밀번호를 다시 확인해 주세요." : "네이버 캘린더에 연결하지 못했어요. (" + e.message + ")" }; }
     // 처음 연결할 때 이미 있던 seen 은 유지 (다시 연결해도 지운 일정이 되살아나지 않게)
-    const next = { id, pw, seen: cfg ? cfg.seen || [] : [], lastSync: 0 };
+    const next = { id, pw, memberId: String(b.memberId || "").slice(0, 40), seen: cfg ? cfg.seen || [] : [], lastSync: 0 };
     await saveNaverRow(fam, next);
     return await naverSync(fam, next).catch((e) => ({ error: String(e.message || e) }));
   }
