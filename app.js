@@ -113,7 +113,11 @@
     const st = el("span","stack"); const ids = who(e);
     (ids.length ? ids.map(member).filter(Boolean) : [null]).slice(0,4).forEach(m => st.append(avatar(m, true)));
     r.append(st);
-    if (opts.del) r.append(xBtn(e.title, del("events", e.id)));
+    if (e.src === "naver") { const nb = el("span","badge","N"); nb.title = "네이버 캘린더에서 가져온 일정"; nb.style.cssText = "color:#03a94d;background:#e3f7ea"; tt.prepend(nb); }
+    if (opts.del) {
+      const ed = el("button","x","✎"); ed.type = "button"; ed.setAttribute("aria-label", e.title + " 고치기"); ed.onclick = () => editEvent(e);
+      r.append(ed, xBtn(e.title, del("events", e.id)));
+    }
     return r;
   }
   function upcoming(days) {
@@ -495,11 +499,28 @@
 
   // ---------- forms ----------
   const guard = fn => async ev => { ev.preventDefault(); if (!ready()) return; try { await fn(ev.currentTarget); } catch(e) { fail(e); } };
+  // editing: the form switches to "수정 저장"; imported Naver events become ordinary board events once saved
+  let editingEv = null;
+  function editEvent(e) {
+    editingEv = e.id;
+    $("ev-title").value = e.title; $("ev-date").value = e.date; $("ev-start").value = e.start || ""; $("ev-end").value = e.end || "";
+    evWho.clear(); who(e).forEach(id => member(id) && evWho.add(id)); renderWhoChips();
+    evType = (typeOf(e) || [""])[0]; renderTypeChips();
+    $("ev-submit").textContent = "수정 저장"; $("ev-cancel").hidden = false;
+    if (location.hash !== "#calendar") location.hash = "#calendar";
+    setTimeout(() => { $("f-ev").scrollIntoView({ behavior: "smooth", block: "center" }); $("ev-title").focus(); }, 50);
+  }
+  function resetEvForm() {
+    editingEv = null; $("ev-title").value = ""; $("ev-start").value = ""; $("ev-end").value = ""; evType = ""; renderTypeChips();
+    $("ev-submit").textContent = "일정 추가"; $("ev-cancel").hidden = true;
+  }
+  $("ev-cancel").onclick = resetEvForm;
   $("f-ev").addEventListener("submit", guard(async () => {
     const title = $("ev-title").value.trim(), date = $("ev-date").value; if (!title || !date) return;
-    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], type: evType, game: evType === "game", by: me || "", createdAt: Date.now() };
-    $("ev-title").value = ""; $("ev-start").value = ""; $("ev-end").value = ""; evType = ""; renderTypeChips();
-    await db.collection("events").add(data); toast("일정을 추가했어요");
+    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], type: evType, game: evType === "game" };
+    const id = editingEv; resetEvForm();
+    if (id && state.events.some(x => x.id === id)) { await db.doc("events/" + id).update({ ...data, editedAt: Date.now() }); toast("일정을 고쳤어요"); }
+    else { await db.collection("events").add({ ...data, by: me || "", createdAt: Date.now() }); toast("일정을 추가했어요"); }
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
     const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
@@ -777,6 +798,41 @@
       : "버튼을 누르면 수다방 새 글과 용돈 입금을 앱이 꺼져 있어도 알려 줘요.";
   }
 
+  // ---------- 네이버 캘린더 가져오기 (server does the work; the password never comes back to the browser) ----------
+  let nvState = null;
+  async function naverCall(action, extra = {}) {
+    const r = await fetch(PUSH_URL, { method: "POST", headers: { "content-type": "application/json", "x-family-key": famKey }, body: JSON.stringify({ action, ...extra }) });
+    return r.json();
+  }
+  const agoLabel = t => t ? ago(t) : "아직";
+  function renderNaver() {
+    const st = $("nv-status"), on = nvState && nvState.connected;
+    $("f-nv").hidden = !!on; $("nv-off").hidden = !on; $("nv-sync").hidden = !on;
+    if (on) st.textContent = `${nvState.naverId} 님 네이버 캘린더와 연결돼 있어요. 마지막 확인: ${agoLabel(nvState.lastSync)}${nvState.lastAdded ? ` · 새 일정 ${nvState.lastAdded}개` : ""}${nvState.error ? " · ⚠️ " + (nvState.error === "login" ? "로그인이 풀렸어요. 연결 끊기 후 앱 비밀번호를 다시 넣어 주세요." : nvState.error) : ""}. 앱을 열 때 2시간마다 새 일정을 확인해요.`;
+  }
+  async function naverRefresh(force) {
+    if (!db || !famKey || !PUSH_URL || isSimple()) return;
+    try {
+      const r = await naverCall("naver-sync", { force: !!force });
+      if (r.added) { await db.loadCol("events"); toast(`네이버에서 새 일정 ${r.added}개를 가져왔어요 📅`); }
+      else if (force && r.ok) toast("새로 가져올 일정이 없어요");
+      else if (r.error && force) toast(r.error);
+      nvState = await naverCall("naver-status"); renderNaver();
+    } catch (e) { console.warn(e); }
+  }
+  $("f-nv").addEventListener("submit", guard(async () => {
+    const id = $("nv-id").value.trim(), pw = $("nv-pw").value.trim(); if (!id || !pw) return;
+    $("nv-status").textContent = "네이버에 연결하는 중…";
+    const r = await naverCall("naver-save", { id, pw });
+    $("nv-pw").value = "";
+    if (r.error) { toast(r.error); nvState = await naverCall("naver-status"); renderNaver(); if (!nvState.connected) $("nv-status").textContent = "⚠️ " + r.error; return; }
+    if (r.added) await db.loadCol("events");
+    toast(`연결됐어요! 일정 ${r.added || 0}개를 가져왔어요 📅`);
+    nvState = await naverCall("naver-status"); renderNaver();
+  }));
+  $("nv-sync").onclick = () => naverRefresh(true);
+  $("nv-off").onclick = async () => { if (!ready()) return; nvState = await naverCall("naver-off"); renderNaver(); toast("네이버 캘린더 연결을 끊었어요. 이미 가져온 일정은 그대로 남아요."); };
+
   // ---------- connect ----------
   $("ev-date").value = todayStr(); $("di-date").value = todayStr();
   route(); renderAll(); loadWeather();
@@ -794,6 +850,7 @@
     if (n === 0 && !allowNew) return "empty";
     db = st; famKey = key; store("fam-key", key); renderAll(); syncPush();
     st.cleanupPhotos(PHOTO_DAYS * 864e5).catch(() => {});
+    naverRefresh(false);
     return "ok";
   }
   function showGate(msg) {
@@ -824,7 +881,7 @@
     try { const r = await connect(key, true); if (r !== "ok") showGate(); }
     catch (e) { console.error(e); showGate("연결하지 못했어요. 다시 시도해 주세요."); }
   })();
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && db) db.loadAll().catch(console.error); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && db) { db.loadAll().catch(console.error); naverRefresh(false); } });
   setInterval(() => { if (db && !document.hidden) db.loadAll().catch(console.error); }, 60000);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   setInterval(() => { renderCal(); loadWeather(); }, 30 * 60000);

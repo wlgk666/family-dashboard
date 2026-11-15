@@ -261,6 +261,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .room-tabs{margin:2px 0 6px}
 .room-tabs .chip{font-size:14px;padding:6px 14px}
 body.simple .room-tabs{display:none}
+body.simple #naver-card{display:none}
 body.simple .simple-only{display:block}
 body.simple #nav a:not([data-v="calendar"]):not([data-v="allchat"]):not([data-v="money"]){display:none}
 body.simple .main{zoom:1.15}
@@ -436,7 +437,8 @@ body.simple #nav a{font-size:14px}
           <input id="ev-end" type="time" aria-label="끝 시간">
           <div class="chips" style="flex-basis:100%"><span class="label">누가</span><span id="ev-who" class="chips"></span></div>
           <div class="chips" style="flex-basis:100%"><span class="label">종류</span><span class="chips" id="ev-types"></span></div>
-          <button class="btn">일정 추가</button>
+          <button class="btn" id="ev-submit">일정 추가</button>
+          <button class="btn ghost" type="button" id="ev-cancel" hidden>취소</button>
         </form>
       </div>
     </div>
@@ -558,6 +560,16 @@ body.simple #nav a{font-size:14px}
       <div class="card-h"><h2>우리 가족 선수단</h2><span class="sub">이 기기의 주인을 고르면 내 할 일과 글이 표시돼요</span></div>
       <div id="fam-list"></div>
     </div>
+    <div class="card" id="naver-card">
+      <div class="card-h"><h2>📅 네이버 캘린더 가져오기</h2><button class="btn ghost" type="button" id="nv-sync" hidden>지금 가져오기</button></div>
+      <div class="sub" id="nv-status">네이버 캘린더의 새 일정을 하루에도 여러 번 자동으로 일정에 넣어 줘요. 가져온 일정은 여기서 고치거나 지워도 네이버에는 영향이 없고, 다시 덮어쓰지 않아요.</div>
+      <form class="add" id="f-nv">
+        <input id="nv-id" type="text" placeholder="네이버 아이디" autocomplete="username" autocapitalize="off" maxlength="40" required aria-label="네이버 아이디">
+        <input id="nv-pw" type="password" placeholder="앱 비밀번호" autocomplete="off" maxlength="60" required aria-label="네이버 앱 비밀번호">
+        <button class="btn">연결</button>
+      </form>
+      <button class="btn ghost" type="button" id="nv-off" hidden>연결 끊기</button>
+    </div>
     <div class="card" id="push-card">
       <div class="card-h"><h2>🔔 알림</h2><button class="btn noti-btn" type="button" hidden>이 기기 알림 켜기</button></div>
       <div class="sub" id="push-status"></div>
@@ -612,6 +624,6 @@ body.simple #nav a{font-size:14px}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
