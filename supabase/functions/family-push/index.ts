@@ -104,6 +104,13 @@ export async function handler(req) {
 // ======================= 매일 아침 알림: 오늘 일정 + 할 일 =======================
 // GitHub Actions 가 매일 아침 7시(한국)쯤 부르면, 알림을 켠 가족 기기마다 그 사람의 오늘 일정·할 일을 보내요.
 // 하루에 한 번만 돌도록 "__vapid" 행에 날짜를 남겨서, 누가 여러 번 불러도 알림이 겹치지 않아요.
+// 매주 반복 일정(repeat = "weekly")은 첫날(date)과 같은 요일마다, until 까지, skip 에 없는 날 보여요 (app.js 와 같은 규칙)
+function occursOn(e, day) {
+  if (!e.date) return false;
+  if (e.repeat !== "weekly") return e.date === day;
+  const wd = (s) => new Date(s + "T00:00:00Z").getUTCDay();
+  return day >= e.date && (!e.until || day <= e.until) && wd(day) === wd(e.date) && !(e.skip || []).includes(day);
+}
 async function morningDigest(dry) {
   const now = Date.now(), today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
   const guard = (await rows("family=eq.__vapid&col=eq.cfg&id=eq.morning&select=data"))[0];
@@ -118,7 +125,7 @@ async function morningDigest(dry) {
     const members = all.filter((r) => r.col === "members"), events = all.filter((r) => r.col === "events").map((r) => r.data), chores = all.filter((r) => r.col === "chores").map((r) => r.data);
     for (const s of subs.filter((r) => r.family === fam && r.data && r.data.sub)) {
       const m = members.find((x) => x.id === s.data.memberId); if (!m || m.data.kind === "grand") continue;
-      const evs = events.filter((e) => e.date === today && (!(e.memberIds || []).length || e.memberIds.includes(m.id))).sort((a, c) => (a.start || "99").localeCompare(c.start || "99"));
+      const evs = events.filter((e) => occursOn(e, today) && (!(e.memberIds || []).length || e.memberIds.includes(m.id))).sort((a, c) => (a.start || "99").localeCompare(c.start || "99"));
       const todo = chores.filter((c) => (!c.memberId || c.memberId === m.id) && !(c.done && (!c.daily || kstDay(c.doneAt || 0) === today)));
       if (!evs.length && !todo.length) continue;
       const lines = [];

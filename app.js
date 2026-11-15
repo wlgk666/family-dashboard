@@ -52,6 +52,21 @@
   const typeOf = e => EV_TYPES.find(t => t[0] === (e.type || (e.game ? "game" : "")));
   const evColor = e => { const t = typeOf(e); return t ? t[3] : (who(e).length === 1 ? colorVar(member(who(e)[0])) : "var(--deep)"); };
   const sortEv = (a,b) => (a.date+(a.start||"99")).localeCompare(b.date+(b.start||"99"));
+  // 매주 반복 일정: 한 번 저장(date = 첫날, repeat = "weekly", until = 끝나는 날(없으면 계속), skip = 뺀 날들)하고 화면에서 요일마다 펼쳐 보여요
+  const repeats = e => e.repeat === "weekly";
+  const occ = (e, s) => repeats(e) ? { ...e, date: s, seriesStart: e.date } : e;
+  function eventsBetween(from, to) { // from 포함, to 미포함 ("9999" = 끝 없음: 반복은 4주까지만 펼쳐요)
+    const out = [], horizon = to === "9999" ? ymd(addDays(parseYmd(from), 28)) : to;
+    state.events.forEach(e => {
+      if (!e.date || !visibleFor(who(e))) return;
+      if (!repeats(e)) { if (e.date >= from && e.date < to) out.push(e); return; }
+      const wd = parseYmd(e.date).getDay(); let d = parseYmd(e.date > from ? e.date : from);
+      d = addDays(d, (wd - d.getDay() + 7) % 7);
+      for (let s = ymd(d); s < horizon && (!e.until || s <= e.until); d = addDays(d, 7), s = ymd(d)) if (!(e.skip || []).includes(s)) out.push(occ(e, s));
+    });
+    return out.sort(sortEv);
+  }
+  const eventsOn = s => eventsBetween(s, ymd(addDays(parseYmd(s), 1)));
 
   // ---------- routing ----------
   const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
@@ -97,7 +112,7 @@
     const t = todayStr(), cells = monthCells();
     const last = cells.slice(35).every(d => d.getMonth() !== cursor.getMonth()) ? 35 : 42;
     cells.slice(0,last).forEach(d => {
-      const s = ymd(d), evs = state.events.filter(e => e.date === s && visibleFor(who(e))).sort(sortEv);
+      const s = ymd(d), evs = eventsOn(s);
       const b = el("button","d"+(d.getMonth()!==cursor.getMonth()?" out":"")+(s===t?" today":"")+(s===selDay?" sel":"")+(d.getDay()===0?" sun":""));
       b.type = "button";
       b.append(el("span","n", d.getDate()));
@@ -123,16 +138,38 @@
     const st = el("span","stack"); const ids = who(e);
     (ids.length ? ids.map(member).filter(Boolean) : [null]).slice(0,4).forEach(m => st.append(avatar(m, true)));
     r.append(st);
+    if (repeats(e)) { const rb = el("span","badge","🔁"); rb.title = e.until ? `${fmtDay(e.until)}까지 매주` : "매주 반복"; rb.style.cssText = "color:var(--m5);background:color-mix(in srgb, var(--m5) 14%, transparent)"; tt.prepend(rb); }
     if (e.src === "naver") { const nb = el("span","badge","N"); nb.title = "네이버 캘린더에서 가져온 일정"; nb.style.cssText = "color:#03a94d;background:#e3f7ea"; tt.prepend(nb); }
     if (opts.del) {
       const ed = el("button","x","✎"); ed.type = "button"; ed.setAttribute("aria-label", e.title + " 고치기"); ed.onclick = () => editEvent(e);
-      r.append(ed, xBtn(e.title, del("events", e.id)));
+      r.append(ed, xBtn(e.title, repeats(e) ? () => delRepeat(e) : del("events", e.id)));
     }
     return r;
   }
+  async function delRepeat(e) {
+    if (!ready()) return;
+    const c = await ask(`‘${e.title}’ 지우기`, `매주 반복되는 일정이에요. ${fmtDay(e.date)}만 지울까요, 매주 전부 지울까요?`,
+      [["one", `${fmtDay(e.date)}만 지우기`], ["all", "매주 일정 전부 지우기", "ghost"], ["", "취소", "ghost"]]);
+    const cur = state.events.find(x => x.id === e.id); if (!c || !cur) return;
+    try {
+      if (c === "all") { await db.doc("events/" + e.id).delete(); toast("반복 일정을 모두 지웠어요"); }
+      else { await db.doc("events/" + e.id).update({ skip: [...new Set([...(cur.skip || []), e.date])] }); toast(`${fmtDay(e.date)} 일정만 뺐어요`); }
+    } catch (x) { fail(x); }
+  }
+  // 고르기 창: ask(제목, 설명, [[값, 글자, "ghost"?], ...]) → 누른 값 (바깥을 누르면 "")
+  function ask(title, sub, opts) {
+    return new Promise(res => {
+      const box = $("ask"), btns = $("ask-btns");
+      $("ask-title").textContent = title; $("ask-sub").textContent = sub || ""; btns.replaceChildren();
+      const done = v => { box.hidden = true; box.onclick = null; res(v); };
+      opts.forEach(([v, label, cls]) => { const b = el("button", "btn" + (cls ? " " + cls : ""), label); b.type = "button"; b.onclick = ev => { ev.stopPropagation(); done(v); }; btns.append(b); });
+      box.onclick = ev => { if (ev.target === box) done(""); };
+      box.hidden = false; btns.firstChild && btns.firstChild.focus();
+    });
+  }
   function upcoming(days) {
     const t = todayStr(), end = days ? ymd(addDays(new Date(), days)) : "9999";
-    return state.events.filter(e => e.date >= t && e.date < end && visibleFor(who(e))).sort(sortEv);
+    return eventsBetween(t, end);
   }
   function renderCal() {
     $$(".mtitle").forEach(x => x.textContent = `${cursor.getFullYear()}년 ${cursor.getMonth()+1}월`);
@@ -141,11 +178,16 @@
     $("tab-ev").setAttribute("aria-selected", String(homeTab==="ev")); $("tab-di").setAttribute("aria-selected", String(homeTab==="di"));
     const hl = $("home-list"); hl.replaceChildren();
     if (homeTab === "ev") {
-      const list = selDay ? state.events.filter(e => e.date === selDay && visibleFor(who(e))).sort(sortEv) : upcoming(7);
+      const list = selDay ? eventsOn(selDay) : upcoming(7);
       $("home-sub").textContent = selDay ? `${fmtDay(selDay)} · ${list.length}건` : `오늘부터 7일 · ${list.length}건`;
       list.forEach(e => hl.append(evRow(e)));
       if (!list.length) hl.append(el("div","empty", selDay ? "이 날은 일정이 없어요." : "다가오는 일주일은 일정이 비어 있어요."));
       $("home-more").href = "#calendar"; $("home-add").hidden = false;
+    } else if (diaryLocked()) {
+      $("home-sub").textContent = "🔒 잠겨 있어요";
+      const b = el("div","empty"); const a = el("a",null,"일기장 열기"); a.href = "#diary";
+      b.append(document.createTextNode("일기장이 잠겨 있어요. "), a); hl.append(b);
+      $("home-more").href = "#diary"; $("home-add").hidden = true;
     } else {
       const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt).slice(0,5);
       $("home-sub").textContent = `최근 일기 ${list.length}편`;
@@ -155,7 +197,7 @@
     }
     // calendar view list
     const cl = $("cal-list"); cl.replaceChildren();
-    const list = selDay ? state.events.filter(e => e.date === selDay && visibleFor(who(e))).sort(sortEv) : upcoming(0).slice(0,40);
+    const list = selDay ? eventsOn(selDay) : upcoming(0).slice(0,40);
     $("cal-list-h").textContent = selDay ? fmtDay(selDay) : "다가오는 일정"; $("cal-clear").hidden = !selDay;
     list.forEach(e => cl.append(evRow(e, {del:true})));
     if (!list.length) cl.append(el("div","empty", selDay ? "이 날은 일정이 없어요. 오른쪽에서 추가해 보세요." : "아직 일정이 없어요."));
@@ -170,6 +212,9 @@
       b.onclick = () => { evType = evType === id ? "" : id; renderTypeChips(); }; box.append(b); });
   }
   renderTypeChips();
+  let evRepeat = false;
+  function renderRepeat() { $("ev-repeat").setAttribute("aria-pressed", String(evRepeat)); $("ev-until-wrap").hidden = !evRepeat; }
+  $("ev-repeat").onclick = () => { evRepeat = !evRepeat; renderRepeat(); };
 
   function renderWhoChips() {
     const box = $("ev-who"); box.replaceChildren();
@@ -211,7 +256,7 @@
       w.append(el("div","big-t","날씨 준비 중"));
       w.append(el("div","small","날씨를 불러오는 중이에요. 잠시 후 다시 확인해 주세요."));
     }
-    const t = todayStr(), games = state.events.filter(e => (e.type === "game" || e.game) && e.date >= t).sort(sortEv);
+    const t = todayStr(), games = eventsBetween(t, "9999").filter(e => e.type === "game" || e.game);
     if (games.length) { const g = games[0]; w.append(el("div","w-game", `⚾ 직관 ${relDay(g.date)} · ${g.title}${g.start ? " " + g.start : ""}`)); }
     const foot = el("div","w-foot");
     const stale = wx && Date.now() - wx.updatedAt > 12 * 3600e3;
@@ -338,7 +383,75 @@
     c.append(hd, el("div","t", d.text));
     return c;
   }
+  // ---------- 일기 잠금 (4자리 비밀번호) ----------
+  // 비밀번호는 members 문서에 sha256 값(pin)으로만 저장해요. 열어 둔 일기장은 앱을 내리거나, 10분이 지나거나, 기기 주인이 바뀌면 다시 잠겨요.
+  const pinHash = async (id, pin) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`diary:${id}:${pin}`)))].map(b => b.toString(16).padStart(2,"0")).join("");
+  let diaryOpenFor = "", diaryOpenAt = 0, lockTimer = 0;
+  let pinMode = "unlock", pinBuf = "", pinFirst = "", pinFails = 0, pinWaitUntil = 0;
+  const hasPin = () => { const m = member(me); return !!(m && m.pin); };
+  const diaryLocked = () => hasPin() && !(diaryOpenFor === me && Date.now() - diaryOpenAt < 600e3);
+  function lockDiary() { diaryOpenFor = ""; clearTimeout(lockTimer); pinMode = "unlock"; pinBuf = ""; if (db) { renderDiary(); renderCal(); renderBackupNote(); } }
+  function openDiary() { diaryOpenFor = me; diaryOpenAt = Date.now(); clearTimeout(lockTimer); lockTimer = setTimeout(lockDiary, 600e3); }
+  document.addEventListener("visibilitychange", () => { if (document.hidden && diaryOpenFor) lockDiary(); });
+  const PIN_TEXT = {
+    unlock: ["일기장이 잠겨 있어요", "비밀번호 4자리를 눌러 주세요"],
+    set1: ["일기 비밀번호 만들기", "새 비밀번호 4자리를 눌러 주세요"],
+    set2: ["한 번 더 눌러 주세요", "똑같이 한 번 더 눌러 주세요"],
+  };
+  (() => {
+    const pad = $("pin-pad");
+    ["1","2","3","4","5","6","7","8","9","clr","0","back"].forEach(k => {
+      const b = el("button", k.length > 1 ? "fn" : null, k === "clr" ? "모두 지우기" : k === "back" ? "⌫" : k); b.type = "button";
+      b.setAttribute("aria-label", k === "clr" ? "모두 지우기" : k === "back" ? "하나 지우기" : k);
+      b.onclick = () => pinKey(k); pad.append(b);
+    });
+    $("pin-cancel").onclick = () => { pinMode = "unlock"; pinBuf = ""; renderDiary(); };
+  })();
+  function pinShow(msg) {
+    const [t, sub] = PIN_TEXT[pinMode]; $("pin-title").textContent = t; $("pin-sub").textContent = sub;
+    $$("#pin-dots span").forEach((d, i) => d.classList.toggle("on", i < pinBuf.length));
+    if (msg != null) $("pin-msg").textContent = msg;
+    $("pin-cancel").hidden = pinMode === "unlock"; $("pin-forgot").hidden = pinMode !== "unlock";
+  }
+  function pinWrong(msg) { const d = $("pin-dots"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake"); pinBuf = ""; pinShow(msg); }
+  async function pinKey(k) {
+    if (k === "clr") pinBuf = ""; else if (k === "back") pinBuf = pinBuf.slice(0, -1);
+    else if (pinBuf.length < 4) pinBuf += k;
+    pinShow(""); if (pinBuf.length < 4) return;
+    const m = member(me); if (!m || !ready()) return;
+    const entered = pinBuf;
+    if (pinMode === "unlock") {
+      if (Date.now() < pinWaitUntil) return pinWrong(`잠깐! ${Math.ceil((pinWaitUntil - Date.now()) / 1000)}초 뒤에 다시 눌러 주세요.`);
+      if (await pinHash(m.id, entered) === m.pin) { pinFails = 0; pinBuf = ""; openDiary(); renderDiary(); renderCal(); renderBackupNote(); return; }
+      pinFails++; if (pinFails >= 5) { pinFails = 0; pinWaitUntil = Date.now() + 30e3; return pinWrong("5번 틀렸어요. 30초 뒤에 다시 해 주세요."); }
+      return pinWrong("비밀번호가 달라요. 다시 눌러 주세요.");
+    }
+    if (pinMode === "set1") { pinFirst = entered; pinBuf = ""; pinMode = "set2"; return pinShow(""); }
+    if (entered !== pinFirst) { pinMode = "set1"; pinFirst = ""; return pinWrong("두 번 누른 번호가 달라요. 처음부터 다시 해 주세요."); }
+    try { await db.doc("members/" + m.id).update({ pin: await pinHash(m.id, entered), pinAt: Date.now() }); }
+    catch (x) { pinMode = "unlock"; pinBuf = ""; fail(x); renderDiary(); return; }
+    pinMode = "unlock"; pinBuf = ""; pinFirst = ""; openDiary(); renderDiary(); renderBackupNote();
+    toast("일기 비밀번호를 정했어요 🔒 꼭 기억해 주세요!");
+  }
+  function startSetPin() { pinMode = "set1"; pinBuf = ""; pinFirst = ""; renderDiary(); window.scrollTo(0, 0); }
+  async function removePin() {
+    const m = member(me); if (!m || !ready()) return;
+    const c = await ask("일기 비밀번호를 끌까요?", "끄면 이 기기에서 ‘이 기기는 나’를 고른 사람 누구나 내 일기를 볼 수 있어요.", [["yes", "비밀번호 끄기"], ["", "취소", "ghost"]]);
+    if (c !== "yes") return;
+    try { await db.doc("members/" + m.id).update({ pin: "", pinAt: Date.now() }); toast("일기 비밀번호를 껐어요"); } catch (x) { fail(x); }
+  }
+  function renderLockRow() {
+    const row = $("di-lockrow"); row.replaceChildren(); if (!member(me)) return;
+    const b = (label, fn, cls) => { const x = el("button", "btn " + (cls || "ghost"), label); x.type = "button"; x.onclick = fn; row.append(x); };
+    if (!hasPin()) { row.append(el("span","sub","일기장에 비밀번호를 걸면 다른 가족이 이 기기에서 열어도 못 봐요.")); b("🔒 비밀번호 만들기", startSetPin, "navy"); return; }
+    b("🔒 지금 잠그기", lockDiary, "navy"); b("비밀번호 바꾸기", startSetPin); b("비밀번호 끄기", removePin);
+  }
+
   function renderDiary() {
+    const setting = pinMode !== "unlock", locked = setting || diaryLocked();
+    $("di-lock").hidden = !locked; $("di-main").hidden = locked;
+    if (locked) { pinShow(); return; }
+    renderLockRow();
     const mb = $("di-mood"); mb.replaceChildren();
     MOODS.forEach(([n]) => { const b = el("button","chip t", n); b.type = "button"; b.setAttribute("aria-pressed", String(diMood===n)); b.onclick = () => { diMood = n; renderDiary(); }; mb.append(b); });
     const list = [...state.diary].filter(d => !!me && d.by === me) /* 일기는 이 기기 주인 것만 */.sort((a,b) => (b.date||"").localeCompare(a.date||"") || b.createdAt - a.createdAt);
@@ -470,10 +583,18 @@
       const kind = el("button","chip t", kindLabel(m)); kind.type = "button"; kind.title = "눌러서 바꾸기 (아이 → 어른 → 조부모)";
       kind.onclick = () => ready() && db.doc("members/"+m.id).update({ kind: m.kind === "parent" ? "grand" : m.kind === "grand" ? "child" : "parent" }).catch(fail);
       const mine = el("button","chip t", m.id === me ? "✓ 이 기기 주인" : "이 기기는 나"); mine.type = "button"; mine.setAttribute("aria-pressed", String(m.id === me));
-      mine.onclick = () => { me = m.id; store("fam-me", me); renderAll(); syncPush(); toast(`이 기기는 이제 ${m.name}의 기기예요`); };
+      mine.onclick = () => { me = m.id; store("fam-me", me); diaryOpenFor = ""; pinMode = "unlock"; pinBuf = ""; renderAll(); syncPush(); toast(`이 기기는 이제 ${m.name}의 기기예요`); };
       const bells = state.push.filter(x => x.memberId === m.id).length;
       r.append(avatar(m), nm, num, kind, sws, mine);
       if (bells) { const b = el("span","pill", `🔔 ${bells}`); b.title = `알림 받는 기기 ${bells}대`; r.append(b); }
+      if (m.pin && m.id !== me && member(me) && isAdult(member(me))) {
+        const rs = el("button","chip t","🔑 일기 비번 지우기"); rs.type = "button"; rs.title = "비밀번호를 잊었을 때 지워 주면 다시 만들 수 있어요";
+        rs.onclick = async () => {
+          const c = await ask(`${m.name}의 일기 비밀번호를 지울까요?`, "일기는 그대로 남아요. 지우면 그 기기에서 비밀번호 없이 열리고, 새로 만들 수 있어요.", [["yes", "비밀번호 지우기"], ["", "취소", "ghost"]]);
+          if (c === "yes" && ready()) db.doc("members/"+m.id).update({ pin: "", pinAt: Date.now() }).then(() => toast(`${m.name}의 일기 비밀번호를 지웠어요`)).catch(fail);
+        };
+        r.append(rs);
+      }
       r.append(xBtn(m.name, del("members", m.id)));
       box.append(r);
     });
@@ -504,7 +625,7 @@
     renderFilter(); renderWhoChips();
     fillSelect($("ch-who"), sortedMembers(), "누구든");
     fillSelect($("no-who"), kids(), null);
-    renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderStatus(); renderPush(); checkPop();
+    renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderBackupNote(); renderStatus(); renderPush(); checkPop();
   }
 
   // ---------- forms ----------
@@ -513,24 +634,28 @@
   let editingEv = null;
   function editEvent(e) {
     editingEv = e.id;
-    $("ev-title").value = e.title; $("ev-date").value = e.date; $("ev-start").value = e.start || ""; $("ev-end").value = e.end || "";
+    $("ev-title").value = e.title; $("ev-date").value = e.seriesStart || e.date; $("ev-start").value = e.start || ""; $("ev-end").value = e.end || "";
+    evRepeat = repeats(e); $("ev-until").value = e.until || ""; renderRepeat();
     evWho.clear(); who(e).forEach(id => member(id) && evWho.add(id)); renderWhoChips();
     evType = (typeOf(e) || [""])[0]; renderTypeChips();
-    $("ev-submit").textContent = "수정 저장"; $("ev-cancel").hidden = false;
+    $("ev-submit").textContent = repeats(e) ? "수정 저장 (매주 전체)" : "수정 저장"; $("ev-cancel").hidden = false;
     if (location.hash !== "#calendar") location.hash = "#calendar";
     setTimeout(() => { $("f-ev").scrollIntoView({ behavior: "smooth", block: "center" }); $("ev-title").focus(); }, 50);
   }
   function resetEvForm() {
     editingEv = null; $("ev-title").value = ""; $("ev-start").value = ""; $("ev-end").value = ""; evType = ""; renderTypeChips();
+    evRepeat = false; $("ev-until").value = ""; renderRepeat();
     $("ev-submit").textContent = "일정 추가"; $("ev-cancel").hidden = true;
   }
   $("ev-cancel").onclick = resetEvForm;
   $("f-ev").addEventListener("submit", guard(async () => {
     const title = $("ev-title").value.trim(), date = $("ev-date").value; if (!title || !date) return;
-    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], type: evType, game: evType === "game" };
+    const until = evRepeat ? ($("ev-until").value || "") : "";
+    if (until && until < date) return toast("‘언제까지’는 첫 날짜보다 뒤로 골라 주세요.");
+    const data = { title, date, start: $("ev-start").value || "", end: $("ev-end").value || "", memberIds: [...evWho], type: evType, game: evType === "game", repeat: evRepeat ? "weekly" : "", until };
     const id = editingEv; resetEvForm();
     if (id && state.events.some(x => x.id === id)) { await db.doc("events/" + id).update({ ...data, editedAt: Date.now() }); toast("일정을 고쳤어요"); }
-    else { await db.collection("events").add({ ...data, by: me || "", createdAt: Date.now() }); toast("일정을 추가했어요"); }
+    else { await db.collection("events").add({ ...data, by: me || "", createdAt: Date.now() }); toast(data.repeat ? `매주 ${DOW[parseYmd(date).getDay()]}요일마다 보이게 추가했어요 🔁` : "일정을 추가했어요"); }
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
     const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
@@ -891,6 +1016,70 @@
     catch (e) { console.error(e); showGate("만들지 못했어요. 잠시 후 다시 해 주세요."); }
   };
   $("gate-retry").onclick = () => { $("gate-new").hidden = true; $("gate-key").select(); };
+  // ---------- 백업: 일정 · 용돈 기록 · 내 일기를 파일로 ----------
+  // 일기는 이 기기 주인 것만 넣어요(잠겨 있으면 빠져요). 다른 가족의 일기는 백업으로도 볼 수 없게.
+  const backupDiary = () => member(me) && !diaryLocked() ? state.diary.filter(d => d.by === me).sort((a,b) => (a.date||"").localeCompare(b.date||"") || a.createdAt - b.createdAt) : null;
+  function renderBackupNote() {
+    const n = $("backup-note"); if (!n) return; const m = member(me);
+    n.textContent = !m ? "‘이 기기는 나’를 고르면 내 일기도 같이 저장돼요."
+      : diaryLocked() ? "🔒 일기장이 잠겨 있어서 일기는 빠져요. 일기 메뉴에서 잠금을 풀고 오면 같이 저장돼요."
+      : `${m.name}의 일기 ${state.diary.filter(d => d.by === me).length}편도 같이 저장돼요. 다른 가족의 일기는 넣지 않아요.`;
+  }
+  const nameOf = id => (member(id) || {}).name || "";
+  const whoText = e => who(e).length ? who(e).map(nameOf).filter(Boolean).join(", ") : "가족 전체";
+  const fmtFull = s => { const d = parseYmd(s); return `${s} (${DOW[d.getDay()]})`; };
+  function backupText() {
+    const now = new Date(), L = [];
+    L.push(`오니가족🩷 백업`, `만든 날: ${fmtDay(ymd(now))} ${pad(now.getHours())}:${pad(now.getMinutes())}${member(me) ? " · " + nameOf(me) + "의 기기" : ""}`, "");
+    const evs = [...state.events].filter(e => e.date).sort(sortEv);
+    L.push(`■ 일정 (${evs.length}개)`);
+    evs.forEach(e => {
+      const ty = typeOf(e);
+      let line = `${fmtFull(e.date)} ${timeLabel(e)}  ${ty ? ty[1] + " " : ""}${e.title}  · ${whoText(e)}`;
+      if (repeats(e)) line += `  [매주 ${DOW[parseYmd(e.date).getDay()]}요일 반복${e.until ? ", " + e.until + "까지" : ""}${(e.skip||[]).length ? ", 뺀 날 " + e.skip.join(" ") : ""}]`;
+      L.push(line);
+    });
+    if (!evs.length) L.push("(없음)");
+    L.push("", "■ 용돈 기록");
+    const ids = [...new Set([...kids().map(m => m.id), ...state.allowance.map(a => a.to)])];
+    ids.forEach(id => {
+      const rows = state.allowance.filter(a => a.to === id).sort((a,b) => a.createdAt - b.createdAt);
+      if (!rows.length && !member(id)) return;
+      L.push("", `[${nameOf(id) || "(지운 가족)"}] 지금 잔액 ${won(balanceOf(id))}`);
+      rows.forEach(a => { const d = new Date(a.createdAt || 0); L.push(`${ymd(d)}  ${a.amount > 0 ? "+" : ""}${won(a.amount)}  ${a.memo || (a.amount > 0 ? "용돈" : "사용")}${a.kind === "in" && a.from && a.from !== id ? " (보낸 사람: " + nameOf(a.from) + ")" : ""}`); });
+      if (!rows.length) L.push("(기록 없음)");
+    });
+    const di = backupDiary();
+    L.push("", di ? `■ ${nameOf(me)}의 일기 (${di.length}편)` : "■ 일기: 잠겨 있거나 기기 주인을 고르지 않아서 넣지 않았어요");
+    (di || []).forEach(d => L.push("", `— ${d.date ? fmtFull(d.date) : ymd(new Date(d.createdAt))}${d.mood ? " · 기분: " + d.mood : ""}`, d.text || ""));
+    return L.join("\n") + "\n";
+  }
+  function backupJson() {
+    const strip = ({ id, ...d }) => ({ id, ...d });
+    return JSON.stringify({
+      app: "오니가족", format: 1, exportedAt: new Date().toISOString(), device: nameOf(me),
+      members: state.members.map(({ pin, pinAt, ...m }) => m),
+      events: state.events.map(strip), allowance: state.allowance.map(strip), diary: backupDiary() || [],
+    }, null, 2);
+  }
+  async function saveFile(name, text, type) {
+    const blob = new Blob([text], { type: type + ";charset=utf-8" });
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (ios && window.File && navigator.canShare) {
+      const file = new File([blob], name, { type });
+      if (navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: name }); return true; }
+        catch (e) { if (e && e.name === "AbortError") return false; }
+      }
+    }
+    const url = URL.createObjectURL(blob), a = el("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60e3);
+    return true;
+  }
+  const backupName = ext => `오니가족-백업-${todayStr()}.${ext}`;
+  $("backup-txt").onclick = async () => { if (!ready()) return; if (await saveFile(backupName("txt"), backupText(), "text/plain")) toast("백업 파일을 만들었어요 💾"); };
+  $("backup-json").onclick = async () => { if (!ready()) return; if (await saveFile(backupName("json"), backupJson(), "application/json")) toast("백업 파일을 만들었어요 💾"); };
+
   $("logout").onclick = () => { try { localStorage.removeItem("fam-key"); } catch (e) {} location.reload(); };
 
   (async () => {
@@ -904,7 +1093,7 @@
   setInterval(() => { if (db && !document.hidden) db.loadAll().catch(console.error); }, 60000);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r => r.update()).catch(() => {});
   // 새 버전이 올라오면 앱을 열 때 저절로 새로고침 (홈 화면 앱이 옛날 화면에 머무르지 않게)
-  const APP_VERSION = "22";
+  const APP_VERSION = "23";
   async function checkVersion() {
     try {
       const v = await (await fetch("version.json?t=" + Date.now(), { cache: "no-store" })).json();
