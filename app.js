@@ -501,24 +501,66 @@
     if (wet) t += " · 우산 챙기기";
     return t;
   }
+  function metSky(code) {
+    const c = (code || "").split("_")[0];
+    if (c.includes("thunder")) return ["뇌우","thunder"];
+    if (c.includes("sleet") || c.includes("snow")) return [c.includes("sleet") ? "진눈깨비" : "눈","snow"];
+    if (c.includes("rain")) return ["비","rain"];
+    if (c === "fog") return ["안개","fog"];
+    if (c === "cloudy") return ["흐림","cloud"];
+    if (c === "partlycloudy") return ["구름 조금","partly"];
+    if (c === "fair") return ["대체로 맑음","partly"];
+    if (c === "clearsky") return ["맑음","sun"];
+    return ["구름","cloud"];
+  }
+  const kstParts = t => { const d = new Date(new Date(t).getTime() + 9 * 3600e3); return { day: d.toISOString().slice(0,10), hour: d.getUTCHours() }; };
+  async function fetchMet() {
+    const r = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${PLACE.lat.toFixed(2)}&lon=${PLACE.lon.toFixed(2)}`);
+    if (!r.ok) throw new Error("met " + r.status);
+    const ts = (await r.json()).properties.timeseries;
+    const nowMs = Date.now();
+    const cur = ts.reduce((a, b) => Math.abs(new Date(b.time) - nowMs) < Math.abs(new Date(a.time) - nowMs) ? b : a);
+    const det = cur.data.instant.details;
+    const nx = cur.data.next_1_hours || cur.data.next_6_hours || {};
+    const [nowSky, nowIcon] = metSky(nx.summary && nx.summary.symbol_code);
+    const today = kstParts(nowMs).day, tomorrow = kstParts(nowMs + 864e5).day;
+    const day = d => {
+      const temps = [], codes = [];
+      ts.forEach(t => { const p = kstParts(t.time); if (p.day !== d) return; temps.push(t.data.instant.details.air_temperature);
+        const n = t.data.next_6_hours || t.data.next_1_hours; if (n && p.hour >= 6 && p.hour <= 21) codes.push(n.summary.symbol_code); });
+      if (!temps.length) return null;
+      const wetCodes = codes.filter(c => /rain|snow|sleet|thunder/.test(c));
+      const counts = {}; codes.forEach(c => { const k = c.split("_")[0]; counts[k] = (counts[k] || 0) + 1; });
+      const main = wetCodes[0] || Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "";
+      const [sky, icon] = metSky(main);
+      return { max: Math.round(Math.max(...temps)), min: Math.round(Math.min(...temps)), sky, icon, wet: wetCodes.length > 0 };
+    };
+    const t = Math.round(det.air_temperature), v = (det.wind_speed || 0) * 3.6;
+    const feels = det.air_temperature <= 10 && v > 4.8 ? Math.round(13.12 + 0.6215 * det.air_temperature - 11.37 * v ** 0.16 + 0.3965 * det.air_temperature * v ** 0.16) : t;
+    const td = day(today) || { max: t, min: t, sky: nowSky, icon: nowIcon, wet: false };
+    td.max = Math.max(td.max, t); td.min = Math.min(td.min, t);
+    return { now: { temp: t, feels, sky: nowSky, icon: nowIcon, humidity: Math.round(det.relative_humidity || 0) }, today: td, tomorrow: day(tomorrow), source: "MET Norway" };
+  }
+  async function fetchOpenMeteo() {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${PLACE.lat}&longitude=${PLACE.lon}&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=2`;
+    const r = await fetch(url); if (!r.ok) throw new Error("weather " + r.status);
+    const j = await r.json(), c = j.current, d = j.daily;
+    const day = i => { const [sky, ic] = wmo(d.weather_code[i]); const wet = ic === "rain" || ic === "snow" || ic === "thunder" || (d.precipitation_probability_max[i] || 0) >= 50; return { max: Math.round(d.temperature_2m_max[i]), min: Math.round(d.temperature_2m_min[i]), sky, icon: ic, wet }; };
+    const [nowSky, nowIcon] = wmo(c.weather_code);
+    return { now: { temp: Math.round(c.temperature_2m), feels: Math.round(c.apparent_temperature), sky: nowSky, icon: nowIcon, humidity: c.relative_humidity_2m }, today: day(0), tomorrow: day(1), source: "Open-Meteo" };
+  }
   async function loadWeather() {
     try {
       const cached = JSON.parse(localStorage.getItem("fam-weather") || "null");
-      if (cached && Date.now() - cached.updatedAt < 30 * 60000) { state.weather = [cached]; renderWeather(); return; }
       if (cached) { state.weather = [cached]; renderWeather(); }
+      if (cached && Date.now() - cached.updatedAt < 30 * 60000) return;
     } catch (e) {}
-    try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${PLACE.lat}&longitude=${PLACE.lon}&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=2`;
-      const r = await fetch(url); if (!r.ok) throw new Error("weather " + r.status);
-      const j = await r.json(), c = j.current, d = j.daily;
-      const day = i => { const [sky, ic] = wmo(d.weather_code[i]); const wet = ic === "rain" || ic === "snow" || ic === "thunder" || (d.precipitation_probability_max[i] || 0) >= 50; return { max: Math.round(d.temperature_2m_max[i]), min: Math.round(d.temperature_2m_min[i]), sky, icon: ic, wet, pop: d.precipitation_probability_max[i] || 0 }; };
-      const [nowSky, nowIcon] = wmo(c.weather_code);
-      const today = day(0), now = new Date();
-      const wx = { id: "current", place: PLACE.name, updatedAt: Date.now(), updatedLabel: `${pad(now.getHours())}:${pad(now.getMinutes())} 기준`,
-        now: { temp: Math.round(c.temperature_2m), feels: Math.round(c.apparent_temperature), sky: nowSky, icon: nowIcon, humidity: c.relative_humidity_2m },
-        today, tomorrow: day(1), tip: outfit(today.min, today.max, today.wet), source: "Open-Meteo" };
-      state.weather = [wx]; store("fam-weather", JSON.stringify(wx)); renderWeather();
-    } catch (e) { console.warn(e); }
+    let w = null;
+    for (const f of [fetchMet, fetchOpenMeteo]) { try { w = await f(); break; } catch (e) { console.warn(e); } }
+    if (!w) return;
+    const now = new Date();
+    const wx = { id: "current", place: PLACE.name, updatedAt: Date.now(), updatedLabel: `${pad(now.getHours())}:${pad(now.getMinutes())} 기준`, ...w, tip: outfit(w.today.min, w.today.max, w.today.wet) };
+    state.weather = [wx]; store("fam-weather", JSON.stringify(wx)); renderWeather();
   }
 
   // ---------- allowance ----------
