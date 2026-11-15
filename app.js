@@ -208,7 +208,7 @@
     const open = list.filter(s => !s.done);
     open.slice(0,5).forEach(s => hs.append(shopRow(s,false)));
     if (open.length > 5) hs.append(el("li","meta",`외 ${open.length-5}개`));
-    if (!open.length) hs.append(el("li","empty","살 것이 없어요. 냉장고가 든든해요."));
+    if (!open.length) hs.append(el("li","empty","아직 부탁한 게 없어요. 먹고 싶은 걸 적어 봐요!"));
     const fs = $("shop-full"); fs.replaceChildren();
     list.forEach(s => fs.append(shopRow(s,true)));
     if (!list.length) fs.append(el("li","empty","떨어진 물건이 생기면 바로 적어 두세요."));
