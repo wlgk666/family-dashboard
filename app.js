@@ -19,6 +19,9 @@
   const pad = n => String(n).padStart(2,"0");
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const todayStr = () => ymd(new Date());
+  // a daily chore counts as done only on the day it was checked
+  const fresh = c => c.daily && c.done && ymd(new Date(c.doneAt || 0)) !== todayStr() ? { ...c, done: false, doneBy: "", doneAt: 0 } : c;
+  const pull = (st, n) => { const l = st ? st.list(n) : []; return n === "chores" ? l.map(fresh) : l; };
   const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
   const parseYmd = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
   const fmtDay = s => { const d = parseYmd(s); return `${d.getMonth()+1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`; };
@@ -228,7 +231,7 @@
     const li = el("li", c.done ? "done" : "");
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!c.done; cb.setAttribute("aria-label", c.title);
     cb.onchange = () => ready() && db.doc("chores/"+c.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
-    const g = el("div","grow"); g.append(el("div",null,c.title));
+    const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title); g.append(t);
     if (c.done) { const by = member(c.doneBy); g.append(el("div","meta",`${by ? by.name : "누군가"} 완료 · ${ago(c.doneAt)}`)); }
     li.append(cb, g, xBtn(c.title, del("chores", c.id)));
     return li;
@@ -430,8 +433,8 @@
     await db.collection("events").add(data); toast("일정을 추가했어요");
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
-    const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = "";
-    await db.collection("chores").add({ title, memberId: $("ch-who").value, done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
+    const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
+    await db.collection("chores").add({ title, memberId: $("ch-who").value, daily: $("ch-daily").getAttribute("aria-pressed") === "true", done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
   }));
   $("f-no").addEventListener("submit", guard(async () => {
     const title = $("no-title").value.trim(), memberId = $("no-who").value; if (!title) return;
@@ -473,7 +476,7 @@
     for (const [name,color,kind,number] of ppl) ids.push((await add("members",{ name: name+" (예시)", color, kind, number, createdAt: n })).id);
     const evs = [[0,"18:30","19:30","가족 저녁 식사",[],false],[1,"16:00","16:30","도서관 책 반납",[ids[2]],false],[2,"18:30","21:30","사직 야구장 직관",[],true],[4,"10:30","11:20","학교 독서 발표",[ids[3]],false]];
     for (const [d,start,end,title,memberIds,game] of evs) await add("events",{ title, date: ymd(addDays(t,d)), start, end, memberIds, game, by: ids[0], createdAt: n });
-    for (const [title,mi] of [["수학 익힘 48–51쪽",2],["하루 15분 책 읽기",2],["독서 카드에 감상 한 줄",3],["저녁에 책상 정리",3],["분리수거 내놓기",1]]) await add("chores",{ title, memberId: ids[mi], done: false, doneBy: "", doneAt: 0, createdAt: n });
+    for (const [title,mi] of [["수학 익힘 48–51쪽",2],["하루 15분 책 읽기",2],["독서 카드에 감상 한 줄",3],["저녁에 책상 정리",3],["아침 약 먹기 💊",0],["분리수거 내놓기",1]]) await add("chores",{ title, memberId: ids[mi], daily: title.includes("약"), done: false, doneBy: "", doneAt: 0, createdAt: n });
     for (const [title,cat,mi] of [["미술 시간 색종이·풀","준비물",2],["가을 현장학습 안내","학교 공지",2],["현장학습 참가 여부 확인","체크 항목",3]]) await add("notices",{ title, category: cat, date: ymd(addDays(t,3)), memberId: ids[mi], done: false, createdAt: n });
     for (const item of ["우유 2개","계란 한 판","응원용 막대풍선"]) await add("shopping",{ item, done: false, by: ids[0], createdAt: n });
     await add("diary",{ text: "오늘 도서관에서 야구 만화책을 빌렸다. 주말 직관이 기다려진다!", date: todayStr(), mood: "홈런", by: ids[2], createdAt: n });
@@ -645,14 +648,17 @@
   // ---------- connect ----------
   $("ev-date").value = todayStr(); $("di-date").value = todayStr();
   route(); renderAll(); loadWeather();
+  $("ch-daily").onclick = e => { const b = e.currentTarget; b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true"); };
+  let dayNow = todayStr();
+  setInterval(() => { if (todayStr() !== dayNow) { dayNow = todayStr(); if (db) { state.chores = pull(db, "chores"); renderAll(); } } }, 60000);
 
   async function connect(key, allowNew) {
     const st = await window.createFamilyStore(CFG, key, () => {
-      NAMES.forEach(n => state[n] = st ? st.list(n) : []);
+      NAMES.forEach(n => state[n] = pull(st, n));
       if (db) renderAll();
     });
     const n = await st.loadAll();
-    NAMES.forEach(nm => state[nm] = st.list(nm));
+    NAMES.forEach(nm => state[nm] = pull(st, nm));
     if (n === 0 && !allowNew) return "empty";
     db = st; store("fam-key", key); renderAll();
     return "ok";
