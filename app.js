@@ -4,7 +4,7 @@
   const COLORS = 6;
   const DOW = ["일","월","화","수","목","금","토"];
   const MOODS = [["홈런","var(--m0)"],["안타","var(--m4)"],["볼넷","var(--m3)"],["삼진","var(--m1)"]];
-  const NAMES = ["members","events","chores","notices","diary","shopping","messages","allowance","push"];
+  const NAMES = ["members","events","chores","notices","diary","shopping","menu","messages","allowance","push"];
   const state = Object.fromEntries(NAMES.map(n => [n, []]));
   state.weather = [];
   const CFG = window.FAMILY_CONFIG || {};
@@ -69,7 +69,7 @@
   const eventsOn = s => eventsBetween(s, ymd(addDays(parseYmd(s), 1)));
 
   // ---------- routing ----------
-  const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
+  const VIEWS = ["home","calendar","diary","todo","menu","money","board","allchat","family"];
   function route() {
     let v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
     if (isSimple() && v === "board") v = "allchat";
@@ -79,7 +79,7 @@
     $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== sec);
     if (sec === "board") requestAnimationFrame(chatToEnd); // 숨겨진 상태에선 스크롤이 안 되므로, 화면이 보인 뒤 맨 아래(최근 글)로
     $$("#nav a, #more-sheet a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
-    const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
+    const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","menu","money","family"].includes(v));
     const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
     window.scrollTo(0,0);
   }
@@ -281,12 +281,68 @@
     const open = list.filter(s => !s.done);
     open.slice(0,5).forEach(s => hs.append(shopRow(s,false)));
     if (open.length > 5) hs.append(el("li","meta",`외 ${open.length-5}개`));
-    if (!open.length) hs.append(el("li","empty","아직 부탁한 게 없어요. 먹고 싶은 걸 적어 봐요!"));
+    if (!open.length) hs.append(el("li","empty","아직 부탁한 게 없어요. 필요한 게 생기면 적어 봐요!"));
     const fs = $("shop-full"); fs.replaceChildren();
     list.forEach(s => fs.append(shopRow(s,true)));
     if (!list.length) fs.append(el("li","empty","떨어진 물건이 생기면 바로 적어 두세요."));
     $("sh-clear").hidden = !list.some(s => s.done);
   }
+
+  // ---------- 먹고 싶은 메뉴 ----------
+  const FOOD_EMO = [["치킨","🍗"],["닭","🍗"],["피자","🍕"],["햄버거","🍔"],["버거","🍔"],["떡볶이","🌶️"],["라면","🍜"],["짜장","🍜"],["짬뽕","🍜"],["국수","🍜"],["우동","🍜"],["초밥","🍣"],["돈가스","🍱"],["돈까스","🍱"],["고기","🥩"],["삼겹","🥓"],["갈비","🥩"],["스테이크","🥩"],["김밥","🍙"],["주먹밥","🍙"],["카레","🍛"],["스파게티","🍝"],["파스타","🍝"],["케이크","🍰"],["도넛","🍩"],["아이스크림","🍦"],["빙수","🍧"],["과자","🍪"],["쿠키","🍪"],["초콜릿","🍫"],["사탕","🍬"],["젤리","🍬"],["탕후루","🍡"],["떡","🍡"],["빵","🍞"],["딸기","🍓"],["수박","🍉"],["포도","🍇"],["귤","🍊"],["사과","🍎"],["바나나","🍌"],["만두","🥟"],["핫도그","🌭"],["감자","🍟"],["샌드위치","🥪"],["타코","🌮"],["우유","🥛"],["주스","🧃"],["콜라","🥤"],["음료","🥤"],["새우","🍤"],["튀김","🍤"]];
+  const foodEmo = t => (FOOD_EMO.find(([k]) => t.includes(k)) || [,"🍽️"])[1];
+  const MENU_QUICK = ["치킨","피자","떡볶이","햄버거","초밥","라면","돈가스","아이스크림"];
+  const canManage = m => !!m && m.kind === "parent";
+  const nameOf0 = id => (member(id) || {}).name || "";
+  function menuRow(r) {
+    const li = el("li", "menu-item" + (r.done ? " done" : ""));
+    const asker = member(r.by); if (asker) li.style.setProperty("--who", colorVar(asker));
+    const txt = el("div","txt"), ask = el("div","ask");
+    ask.append(document.createTextNode(r.item + " "), el("em", null, r.done ? "먹었어요!" : "사주세요!"));
+    const by = el("div","by meta"), fans = [r.by, ...(r.metoo || []).filter(id => id !== r.by)].filter(id => member(id));
+    fans.forEach(id => by.append(avatar(member(id), true)));
+    by.append(document.createTextNode(" " + (fans.length ? fans.map(nameOf0).join(", ") : "가족") + " · " + (r.done ? `${nameOf0(r.doneBy) || "누군가"} 사 줌 ${ago(r.doneAt || 0)}` : ago(r.createdAt || 0))));
+    txt.append(ask, by);
+    const acts = el("div","acts"), mine = member(me);
+    if (!r.done) {
+      if (mine && r.by !== me) {
+        const on = (r.metoo || []).includes(me), b = el("button","metoo", on ? "나도! ✓" : "나도!");
+        b.type = "button"; b.setAttribute("aria-pressed", String(on));
+        b.onclick = () => ready() && db.doc("menu/"+r.id).update({ metoo: on ? (r.metoo||[]).filter(x => x !== me) : [...(r.metoo||[]), me] }).catch(fail);
+        acts.append(b);
+      }
+      if (canManage(mine)) {
+        const b = el("button","bought","사 줬어요 ✅"); b.type = "button";
+        b.onclick = () => ready() && db.doc("menu/"+r.id).update({ done: true, doneBy: me, doneAt: Date.now() }).catch(fail);
+        acts.append(b);
+      }
+    } else if (canManage(mine)) {
+      const b = el("button","metoo","되돌리기"); b.type = "button";
+      b.onclick = () => ready() && db.doc("menu/"+r.id).update({ done: false, doneBy: "", doneAt: 0 }).catch(fail);
+      acts.append(b);
+    }
+    if (canManage(mine) || (me && r.by === me) || !mine) acts.append(xBtn(r.item, del("menu", r.id)));
+    li.append(el("span","emo",foodEmo(r.item)), txt, acts);
+    return li;
+  }
+  function renderMenu() {
+    const list = [...state.menu].sort((a,b) => (a.done-b.done) || (a.done ? (b.doneAt||0)-(a.doneAt||0) : (b.createdAt||0)-(a.createdAt||0)));
+    const open = list.filter(r => !r.done);
+    const hm = $("home-menu"); hm.replaceChildren();
+    open.slice(0,6).forEach(r => hm.append(menuRow(r)));
+    if (open.length > 6) hm.append(el("li","meta",`외 ${open.length-6}개 더 있어요`));
+    if (!open.length) hm.append(el("li","empty","먹고 싶은 메뉴를 적으면 “치킨 사주세요!”처럼 올라가요 😋"));
+    const fm = $("menu-full"); fm.replaceChildren();
+    list.forEach(r => fm.append(menuRow(r)));
+    if (!list.length) fm.append(el("li","empty","아직 신청한 메뉴가 없어요."));
+    $("menu-count").textContent = open.length ? `${open.length}개 기다리는 중` : "";
+    $("menu-clear").hidden = !canManage(member(me)) || !list.some(r => r.done);
+  }
+  $$(".menu-quick").forEach(box => MENU_QUICK.forEach(item => {
+    const c = el("button","chip t", foodEmo(item) + " " + item); c.type = "button";
+    c.onclick = () => { const inp = box.parentElement.querySelector('form[data-form="menu"] input'); inp.value = item; inp.focus(); };
+    box.append(c);
+  }));
 
   // ---------- people ----------
   function jersey(m) {
@@ -644,7 +700,7 @@
     renderFilter(); renderWhoChips();
     fillSelect($("ch-who"), sortedMembers(), "누구든");
     fillSelect($("no-who"), kids(), null);
-    renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderBackupNote(); renderStatus(); renderPush(); checkPop();
+    renderCal(); renderWeather(); renderShopping(); renderMenu(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderBackupNote(); renderStatus(); renderPush(); checkPop();
   }
 
   // ---------- forms ----------
@@ -708,6 +764,20 @@
     { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
       notify({ to: adults, except: me || "", title: "🛒 사 주세요!", body: `${w ? w.name : "가족"}: ${item}`, url: "./#todo", tag: "shop" }); }
   })));
+  $$('form[data-form="menu"]').forEach(f => f.addEventListener("submit", guard(async form => {
+    const inp = form.querySelector("input"), item = inp.value.trim(); if (!item) return;
+    const dup = state.menu.find(r => !r.done && r.item.replace(/\s/g,"") === item.replace(/\s/g,""));
+    inp.value = "";
+    if (dup) {
+      if (me && dup.by !== me && !(dup.metoo || []).includes(me)) await db.doc("menu/"+dup.id).update({ metoo: [...(dup.metoo||[]), me] });
+      toast(`‘${dup.item}’은 이미 신청돼 있어요. 나도! 에 넣었어요`); return;
+    }
+    await db.collection("menu").add({ item, by: me || "", metoo: [], done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
+    toast(`${foodEmo(item)} ${item} 사주세요! 신청했어요`);
+    { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
+      notify({ to: adults, except: me || "", title: `${foodEmo(item)} 먹고 싶어요!`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#menu", tag: "menu" }); }
+  })));
+  $("menu-clear").onclick = async () => { if (!ready()) return; for (const r of state.menu.filter(r => r.done)) { try { await db.doc("menu/"+r.id).delete(); } catch(e) { fail(e); break; } } };
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
   }));
@@ -725,6 +795,8 @@
     for (const [title,mi] of [["수학 익힘 48–51쪽",2],["하루 15분 책 읽기",2],["독서 카드에 감상 한 줄",3],["저녁에 책상 정리",3],["아침 약 먹기 💊",0],["분리수거 내놓기",1]]) await add("chores",{ title, memberId: ids[mi], daily: title.includes("약"), done: false, doneBy: "", doneAt: 0, createdAt: n });
     for (const [title,cat,mi] of [["미술 시간 색종이·풀","준비물",2],["가을 현장학습 안내","학교 공지",2],["현장학습 참가 여부 확인","체크 항목",3]]) await add("notices",{ title, category: cat, date: ymd(addDays(t,3)), memberId: ids[mi], done: false, createdAt: n });
     for (const item of ["우유 2개","계란 한 판","응원용 막대풍선"]) await add("shopping",{ item, done: false, by: ids[0], createdAt: n });
+    await add("menu",{ item: "치킨", by: ids[2], metoo: [ids[3]], done: false, doneBy: "", doneAt: 0, createdAt: n - 1800e3 });
+    await add("menu",{ item: "떡볶이", by: ids[3], metoo: [], done: false, doneBy: "", doneAt: 0, createdAt: n - 600e3 });
     await add("diary",{ text: "오늘 도서관에서 야구 만화책을 빌렸다. 주말 직관이 기다려진다!", date: todayStr(), mood: "홈런", by: ids[2], createdAt: n });
     await add("messages",{ text: "토요일 직관 가는 사람 저녁 6시까지 준비!", by: ids[1], hearts: [ids[2]], createdAt: n - 600e3 });
     await add("messages",{ text: "나 갈래!! 막대풍선 챙겨갈게", by: ids[2], hearts: [ids[1], ids[0]], createdAt: n - 300e3 });
