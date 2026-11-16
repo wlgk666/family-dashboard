@@ -266,10 +266,34 @@
     const src = el("span"); if (wx) src.append(document.createTextNode((wx.source || "") + " · ")); src.append(a); foot.append(src);
     w.append(foot);
   }
-  // 사 주세요: 먹고 싶은 메뉴와 필요한 물건을 한 목록에. 누가 부탁했는지, 같이 원하는 사람(나도!)이 보여요.
-  const FOOD_EMO = [["치킨","🍗"],["닭","🍗"],["피자","🍕"],["햄버거","🍔"],["버거","🍔"],["떡볶이","🌶️"],["라면","🍜"],["짜장","🍜"],["짬뽕","🍜"],["국수","🍜"],["우동","🍜"],["마라","🍜"],["초밥","🍣"],["돈가스","🍱"],["돈까스","🍱"],["고기","🥩"],["삼겹","🥓"],["갈비","🥩"],["스테이크","🥩"],["김밥","🍙"],["주먹밥","🍙"],["카레","🍛"],["스파게티","🍝"],["파스타","🍝"],["케이크","🍰"],["도넛","🍩"],["아이스크림","🍦"],["빙수","🍧"],["과자","🍪"],["쿠키","🍪"],["초콜릿","🍫"],["사탕","🍬"],["젤리","🍬"],["탕후루","🍡"],["떡","🍡"],["빵","🍞"],["딸기","🍓"],["수박","🍉"],["포도","🍇"],["귤","🍊"],["사과","🍎"],["바나나","🍌"],["만두","🥟"],["핫도그","🌭"],["감자","🍟"],["샌드위치","🥪"],["우유","🥛"],["계란","🥚"],["달걀","🥚"],["주스","🧃"],["콜라","🥤"],["음료","🥤"],["새우","🍤"],["튀김","🍤"],["색연필","🖍️"],["연필","✏️"],["공책","📓"],["풍선","🎈"]];
-  const shopEmo = t => (FOOD_EMO.find(([k]) => t.includes(k)) || [,"🛒"])[1];
-  const SHOP_QUICK = ["치킨","피자","떡볶이","햄버거","초밥","라면","돈가스","아이스크림"];
+  // 저녁메뉴 및 사주세요: 먹고 싶은 메뉴와 필요한 물건을 한 목록에. 누가 부탁했는지, 같이 원하는 사람(나도!)이 보여요.
+  // 앞쪽 단어가 먼저 맞춰져요: "김치찌개"는 "김치"보다, "닭갈비"는 "닭"보다 앞에 둬야 해요.
+  const FOOD_EMO = [
+    // 찌개·국·탕·찜·전골
+    ["김치찌개","🍲"],["된장찌개","🍲"],["순두부","🍲"],["부대찌개","🍲"],["청국장","🍲"],["동태찌개","🍲"],["고추장찌개","🍲"],["찌개","🍲"],
+    ["김치찜","🥘"],["갈비찜","🥘"],["찜닭","🥘"],["아구찜","🥘"],["계란찜","🥚"],["달걀찜","🥚"],["찜","🥘"],
+    ["미역국","🥣"],["떡국","🥣"],["콩나물국","🥣"],["북엇국","🥣"],["육개장","🍲"],["감자탕","🍲"],["갈비탕","🍲"],["삼계탕","🍲"],["곰탕","🍲"],["설렁탕","🍲"],["매운탕","🍲"],["해장국","🍲"],["샤브샤브","🍲"],["전골","🍲"],["탕","🍲"],["국","🥣"],
+    // 고기·볶음·구이
+    ["닭갈비","🍗"],["닭볶음탕","🍲"],["치킨","🍗"],["닭강정","🍗"],["닭","🍗"],
+    ["불고기","🥩"],["제육","🥓"],["삼겹","🥓"],["목살","🥓"],["보쌈","🥬"],["족발","🍖"],["갈비","🍖"],["스테이크","🥩"],["고기","🥩"],
+    ["오징어볶음","🦑"],["오징어","🦑"],["낙지","🐙"],["쭈꾸미","🐙"],["주꾸미","🐙"],["생선","🐟"],["고등어","🐟"],["갈치","🐟"],["연어","🐟"],["새우","🍤"],["튀김","🍤"],
+    // 밥·면·분식
+    ["비빔밥","🍚"],["볶음밥","🍳"],["김치볶음밥","🍳"],["오므라이스","🍳"],["덮밥","🍚"],["카레","🍛"],["죽","🥣"],["김밥","🍙"],["주먹밥","🍙"],["유부초밥","🍙"],["초밥","🍣"],["회","🍣"],
+    ["떡볶이","🌶️"],["순대","🌭"],["어묵","🍢"],["오뎅","🍢"],["만두","🥟"],["전","🥞"],["파전","🥞"],["부침개","🥞"],["잡채","🍜"],
+    ["라면","🍜"],["짜장","🍜"],["짬뽕","🍜"],["냉면","🍜"],["칼국수","🍜"],["국수","🍜"],["우동","🍜"],["쌀국수","🍜"],["마라","🌶️"],["스파게티","🍝"],["파스타","🍝"],
+    ["돈가스","🍱"],["돈까스","🍱"],["도시락","🍱"],["탕수육","🥡"],["피자","🍕"],["햄버거","🍔"],["버거","🍔"],["핫도그","🌭"],["감자튀김","🍟"],["샌드위치","🥪"],["토스트","🍞"],["타코","🌮"],
+    // 간식·과일·음료
+    ["케이크","🍰"],["도넛","🍩"],["아이스크림","🍦"],["빙수","🍧"],["과자","🍪"],["쿠키","🍪"],["초콜릿","🍫"],["사탕","🍬"],["젤리","🍬"],["탕후루","🍡"],["떡","🍡"],["빵","🍞"],["붕어빵","🐟"],["호떡","🥞"],["고구마","🍠"],["옥수수","🌽"],["감자","🥔"],
+    ["딸기","🍓"],["수박","🍉"],["포도","🍇"],["귤","🍊"],["사과","🍎"],["배","🍐"],["바나나","🍌"],["복숭아","🍑"],["참외","🍈"],["망고","🥭"],
+    ["김치","🥬"],["계란","🥚"],["달걀","🥚"],["두부","🧈"],["우유","🥛"],["요구르트","🥛"],["주스","🧃"],["콜라","🥤"],["사이다","🥤"],["음료","🥤"],
+    ["색연필","🖍️"],["연필","✏️"],["지우개","🧽"],["공책","📓"],["스케치북","🎨"],["물감","🎨"],["색종이","📄"],["가위","✂️"],["테이프","📎"],["풀","🧴"],["실내화","👟"],["마스크","😷"],["풍선","🎈"]];
+  // 한 글자(배·전·국·탕·회·죽·찜)는 끝에 올 때만: "광어회" O, "배추" X
+  const shopEmo = t => { t = t.replace(/\s*\d+\s*(개|봉지?|팩|병|통|판|인분|마리|kg|g)?\s*$/,"").trim(); return (FOOD_EMO.find(([k]) => k.length > 1 ? t.includes(k) : t === k || t.endsWith(k)) || [,"🛒"])[1]; };
+  // 빠른 고르기: 음식 / 간식 / 준비물 버튼을 누르면 그 안의 이모지 메뉴가 펼쳐져요
+  const SHOP_QUICK = [
+    ["음식","🍚",["김치찌개","된장찌개","김치찜","부대찌개","미역국","불고기","제육볶음","삼겹살","닭갈비","비빔밥","김치볶음밥","카레","치킨","떡볶이","돈가스","라면","짜장면","냉면","피자","초밥"]],
+    ["간식","🍪",["아이스크림","과자","젤리","초콜릿","케이크","빵","도넛","탕후루","붕어빵","고구마","딸기","귤","바나나","사과","우유","주스"]],
+    ["준비물","✏️",["연필","색연필","지우개","공책","스케치북","색종이","풀","가위","테이프","물감","실내화","마스크"]]];
   const nameOf0 = id => (member(id) || {}).name || "";
   function shopRow(s, full) {
     const li = el("li", "shop-row" + (s.done ? " done" : ""));
@@ -296,18 +320,30 @@
     li.append(xBtn(s.item, del("shopping", s.id)));
     return li;
   }
-  $$(".shop-quick").forEach(box => SHOP_QUICK.forEach(item => {
-    const c = el("button","chip t", shopEmo(item) + " " + item); c.type = "button";
-    c.onclick = () => { const inp = box.parentElement.querySelector('form[data-form="shop"] input'); inp.value = item; inp.focus(); };
-    box.append(c);
-  }));
+  $$(".shop-quick").forEach(box => {
+    const tabs = el("div","sq-tabs"), pick = el("div","sq-pick"); pick.hidden = true;
+    const inp = box.parentElement.querySelector('form[data-form="shop"] input');
+    let cur = null;
+    const show = cat => {
+      cur = cur === cat ? null : cat;
+      [...tabs.children].forEach(b => b.setAttribute("aria-pressed", String(b.dataset.cat === cur)));
+      pick.replaceChildren(); pick.hidden = !cur; if (!cur) return;
+      SHOP_QUICK.find(c => c[0] === cur)[2].forEach(item => {
+        const b = el("button","sq-item"); b.type = "button"; b.append(el("span","e",shopEmo(item)), el("span","n",item));
+        b.onclick = () => { inp.value = item; inp.focus(); [...pick.children].forEach(x => x.classList.toggle("on", x === b)); };
+        pick.append(b);
+      });
+    };
+    SHOP_QUICK.forEach(([cat, e]) => { const b = el("button","chip t", e + " " + cat); b.type = "button"; b.dataset.cat = cat; b.setAttribute("aria-pressed","false"); b.onclick = () => show(cat); tabs.append(b); });
+    box.append(tabs, pick);
+  });
   function renderShopping() {
     const list = [...state.shopping].sort((a,b) => (a.done-b.done) || (a.done ? (b.doneAt||0)-(a.doneAt||0) : (b.createdAt||0)-(a.createdAt||0)));
     const hs = $("home-shop"); hs.replaceChildren();
     const open = list.filter(s => !s.done);
     open.slice(0,5).forEach(s => hs.append(shopRow(s,false)));
     if (open.length > 5) hs.append(el("li","meta",`외 ${open.length-5}개`));
-    if (!open.length) hs.append(el("li","empty","먹고 싶은 거나 필요한 걸 적으면 “치킨 사주세요!”처럼 올라가요 😋"));
+    if (!open.length) hs.append(el("li","empty","먹고 싶은 거나 필요한 걸 적으면 “김치찌개 사주세요!”처럼 올라가요 😋"));
     const fs = $("shop-full"); fs.replaceChildren();
     list.forEach(s => fs.append(shopRow(s,true)));
     if (!list.length) fs.append(el("li","empty","떨어진 물건이 생기면 바로 적어 두세요."));
@@ -738,7 +774,7 @@
     await db.collection("shopping").add({ item, done: false, by: me || "", metoo: [], createdAt: Date.now() });
     toast(`${shopEmo(item)} ${item} 사주세요! 부탁했어요`);
     { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
-      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 사 주세요!`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#todo", tag: "shop" }); }
+      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
@@ -980,10 +1016,10 @@
     $$(".noti-btn").forEach(b => { b.hidden = on || !db; b.onclick = enablePush; });
     const st = $("push-status"); if (!st) return;
     const blocked = "Notification" in window && Notification.permission === "denied";
-    st.textContent = on ? "이 기기는 알림을 받고 있어요. 매일 아침 오늘 일정·할 일, 용돈 입금, 사 주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요."
+    st.textContent = on ? "이 기기는 알림을 받고 있어요. 매일 아침 오늘 일정·할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요."
       : blocked ? "알림이 막혀 있어요. 아이폰·아이패드 설정 → 알림 → 오니가족에서 ‘알림 허용’을 켜 주세요."
       : !pushOK() && isApple() && !isStandalone() ? "Safari에서 공유 → 홈 화면에 추가한 뒤, 홈 화면의 오니가족 아이콘으로 열어서 켜 주세요."
-      : "버튼을 누르면 매일 아침 오늘 일정·할 일, 용돈 입금, 사 주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요.";
+      : "버튼을 누르면 매일 아침 오늘 일정·할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요.";
   }
 
   // ---------- 네이버 캘린더 가져오기 (server does the work; the password never comes back to the browser) ----------
