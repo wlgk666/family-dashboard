@@ -637,7 +637,18 @@
   }
   function chatToEnd() {
     const b = $("board-msgs"); if (!b || b.closest("[hidden]")) return;
-    if (matchMedia("(max-width:760px)").matches) {
+    const phone = matchMedia("(max-width:760px)").matches, ta = document.activeElement;
+    const typing = phone && ta && ta.tagName === "TEXTAREA" && b.parentElement.contains(ta);
+    document.body.classList.toggle("kb", typing);
+    if (typing) {
+      // 휴대폰에서 글 쓰는 중(자판이 열림): 보이는 화면(visualViewport)에 수다창 + 입력칸을 딱 맞추고, 그 위치로 화면을 옮겨요
+      const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vTop = vv ? vv.offsetTop : 0;
+      const form = ta.form, under = form.getBoundingClientRect().bottom - b.getBoundingClientRect().bottom; // 스티커 + 입력칸
+      const h = Math.max(Math.floor(vh - 16 - under), 120);
+      b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = h + "px";
+      const want = b.getBoundingClientRect().top + scrollY - 8 - vTop; // 수다창 맨 위가 보이는 화면 맨 위에 오도록
+      if (Math.abs(scrollY - want) > 2) scrollTo(0, want);
+    } else if (phone) {
       // 휴대폰: 수다창 높이를 화면에 딱 맞춰서 최근 글과 입력칸이 하단 메뉴에 가리지 않게
       const rail = document.querySelector(".rail"), f0 = b.parentElement.querySelector("form.chat-input"), form = f0 && f0.offsetParent ? f0 : null;
       const navTop = rail ? rail.getBoundingClientRect().top : innerHeight;
@@ -649,6 +660,8 @@
     b.scrollTop = b.scrollHeight;
   }
   addEventListener("resize", () => requestAnimationFrame(chatToEnd));
+  // 자판이 열리고 닫힐 때(아이폰은 window resize가 없어서 visualViewport로 알아요)
+  if (window.visualViewport) visualViewport.addEventListener("resize", () => requestAnimationFrame(chatToEnd));
   const PHOTO_DAYS = 7;
   // photos: one hidden file input; on iPhone/iPad it offers 사진 보관함 / 사진 찍기 / 파일 선택
   async function shrinkPhoto(file, max = 1280) {
@@ -830,6 +843,10 @@
   });
   $$('form[data-form="msg"] textarea').forEach(t => {
     t.addEventListener("input", () => fitMsgBox(t));
+    t.addEventListener("focus", () => { requestAnimationFrame(chatToEnd); setTimeout(chatToEnd, 350); }); // 자판 올라오는 동안 + 다 올라온 뒤
+    t.addEventListener("blur", () => setTimeout(chatToEnd, 50));
+    // 보내기를 눌러도 자판이 내려가지 않게 (입력칸 포커스 유지)
+    t.form.querySelector(".btn").addEventListener("pointerdown", e => { if (document.activeElement === t) e.preventDefault(); });
     t.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && matchMedia("(hover:hover) and (pointer:fine)").matches) { e.preventDefault(); t.form.requestSubmit(); }
     });
