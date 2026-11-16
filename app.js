@@ -84,6 +84,8 @@
     window.scrollTo(0,0);
   }
   addEventListener("hashchange", route);
+  // 홈의 "할 일 추가": 할 일 화면으로 가서 바로 입력칸에 글을 쓸 수 있게 (아이폰 키보드가 뜨도록 누른 순간에 포커스)
+  $("home-add-todo").onclick = e => { e.preventDefault(); location.hash = "#todo"; route(); const t = $("ch-title"); if (t) { t.focus(); t.scrollIntoView({ block: "center" }); } };
   // phones: 4 main tabs + 더보기 sheet with the rest
   (() => {
     const sheet = document.getElementById("more-sheet"), btn = document.getElementById("more-btn");
