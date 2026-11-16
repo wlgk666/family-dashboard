@@ -536,8 +536,22 @@
       if (!l.length) box.append(el("div","empty chat-empty","첫 수다를 시작해 보세요! 아래 스티커를 눌러도 돼요 💬"));
       box.scrollTop = box.scrollHeight;
     });
+    requestAnimationFrame(chatToEnd); // 글이 새로 오거나 위쪽 안내가 사라져도 최근 글이 보이게
   }
-  function chatToEnd() { const b = $("board-msgs"); if (b) b.scrollTop = b.scrollHeight; }
+  function chatToEnd() {
+    const b = $("board-msgs"); if (!b || b.closest("[hidden]")) return;
+    if (matchMedia("(max-width:760px)").matches) {
+      // 휴대폰: 수다창 높이를 화면에 딱 맞춰서 최근 글과 입력칸이 하단 메뉴에 가리지 않게
+      const rail = document.querySelector(".rail"), f0 = b.parentElement.querySelector("form.chat-input"), form = f0 && f0.offsetParent ? f0 : null;
+      const navTop = rail ? rail.getBoundingClientRect().top : innerHeight;
+      const under = form ? form.getBoundingClientRect().bottom - b.getBoundingClientRect().bottom : 0; // 스티커 + 입력칸
+      const h = Math.floor(navTop - 14 - under - (b.getBoundingClientRect().top + scrollY)); // 페이지 맨 위 기준
+      b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = Math.max(h, 260) + "px";
+      if (h < 260 && form) scrollTo(0, form.getBoundingClientRect().bottom + scrollY - (navTop - 14)); // 화면이 너무 작으면 페이지를 내려서 맞춤
+    } else b.style.minHeight = b.style.maxHeight = b.style.height = "";
+    b.scrollTop = b.scrollHeight;
+  }
+  addEventListener("resize", () => requestAnimationFrame(chatToEnd));
   const PHOTO_DAYS = 7;
   // photos: one hidden file input; on iPhone/iPad it offers 사진 보관함 / 사진 찍기 / 파일 선택
   async function shrinkPhoto(file, max = 1280) {
