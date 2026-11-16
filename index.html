@@ -365,22 +365,17 @@ body.simple #nav a{font-size:14px}
 .more-sheet[hidden]{display:none}
 .more-sheet a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:14px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;background:var(--tint)}
 .more-sheet a[aria-current="page"]{background:var(--navy);color:#fff}
-/* ---- 먹고 싶은 메뉴 ---- */
-.menu-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;list-style:none;margin:0;padding:0}
-.menu-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--tint);border:1.5px solid color-mix(in srgb, var(--who, var(--line)) 40%, transparent);min-width:0}
-.menu-item .emo{font-size:30px;line-height:1;flex:none}
-.menu-item .txt{flex:1;min-width:0}
-.menu-item .ask{font-weight:700;font-size:16px;overflow-wrap:anywhere}
-.menu-item .ask em{font-style:normal;color:var(--red)}
-.menu-item .by{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:3px}
-.menu-item .acts{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
-.menu-item.done{opacity:.6;background:transparent}
-.menu-item.done .ask{text-decoration:line-through;text-decoration-color:var(--done)}
-.metoo{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;font-size:12px;padding:2px 8px;white-space:nowrap}
+/* ---- 사 주세요 (먹고 싶은 것·필요한 것) ---- */
+.shop-row .emo{font-size:24px;line-height:1;flex:none;width:30px;text-align:center}
+.shop-row .ask{font-weight:600;overflow-wrap:anywhere}
+.shop-row .ask em{font-style:normal;color:var(--red);font-weight:700}
+.shop-row.done .ask em{color:var(--muted)}
+.shop-row .by{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:2px}
+.shop-row .by .av{margin-right:-2px}
+.metoo{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;font-size:12px;padding:2px 8px;white-space:nowrap;flex:none}
 .metoo[aria-pressed="true"]{border-color:var(--red);background:var(--red-soft);color:var(--red);font-weight:700}
-.bought{border:0;background:var(--deep);color:#fff;border-radius:999px;font-size:12px;font-weight:700;padding:4px 10px;white-space:nowrap}
-.menu-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
-.menu-quick .chip{flex:none;font-size:14px}
+.shop-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.shop-quick .chip{flex:none;font-size:14px}
 </style>
 </head>
 <body>
@@ -395,7 +390,6 @@ body.simple #nav a{font-size:14px}
   <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 19a4 4 0 0 1 6 -3.4"/></symbol>
   <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9 9.5l1.5 5 1.5-4 1.5 4 1.5-5M8.5 12h7"/></symbol>
   <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-8H6.5"/><circle cx="9" cy="19" r="1.3"/><circle cx="17" cy="19" r="1.3"/></symbol>
-  <symbol id="i-food" viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0zM12 4v4M8.5 5.5l1 2.5M15.5 5.5l-1 2.5"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -419,7 +413,6 @@ body.simple #nav a{font-size:14px}
     <a href="#allchat" data-v="allchat" class="more-item"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
     <a href="#diary" data-v="diary" class="more-item"><svg class="i"><use href="#i-book"/></svg>일기</a>
     <a href="#todo" data-v="todo"><svg class="i"><use href="#i-check"/></svg>할 일</a>
-    <a href="#menu" data-v="menu" class="more-item"><svg class="i"><use href="#i-food"/></svg>먹고 싶어</a>
     <a href="#money" data-v="money" class="more-item"><svg class="i"><use href="#i-coin"/></svg>용돈</a>
     <a href="#family" data-v="family" class="more-item"><svg class="i"><use href="#i-people"/></svg>가족</a>
       <button type="button" class="more-btn" id="more-btn" aria-expanded="false" aria-controls="more-sheet"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>더보기</button>
@@ -466,14 +459,9 @@ body.simple #nav a{font-size:14px}
         <div class="weather" id="weather"></div>
         <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>사 주세요! 🛒</h2><a class="more" href="#todo">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
         <ul class="list" id="home-shop"></ul>
-        <form class="add" data-form="shop"><input type="text" id="home-shop-in" placeholder="필요한 거 (예: 우유, 색연필)" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+        <div class="shop-quick" aria-label="먹고 싶은 것 빠르게 고르기"></div>
+        <form class="add" data-form="shop"><input type="text" id="home-shop-in" placeholder="먹고 싶은 거, 필요한 거 (예: 치킨, 우유)" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-h"><h2><svg class="i"><use href="#i-food"/></svg>먹고 싶어요! 🍽️</h2><a class="more" href="#menu">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
-      <ul class="menu-list" id="home-menu"></ul>
-      <div class="menu-quick" aria-label="빠르게 고르기"></div>
-      <form class="add" data-form="menu"><input type="text" placeholder="먹고 싶은 메뉴 (예: 치킨, 떡볶이)" maxlength="40" required aria-label="먹고 싶은 메뉴"><button class="btn">신청</button></form>
     </div>
     <div class="grid-people" id="people"></div>
     <div class="card">
@@ -563,8 +551,10 @@ body.simple #nav a{font-size:14px}
     <div class="grid-people" id="todo-cols"></div>
     <div class="card">
       <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>사 주세요! 🛒</h2><button class="btn ghost" type="button" id="sh-clear">산 것 지우기</button></div>
+      <div class="sub" style="margin:-4px 0 4px">먹고 싶은 메뉴나 필요한 물건을 적으면 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 갖고 싶으면 ‘나도!’를 눌러요.</div>
       <ul class="list lined" id="shop-full"></ul>
-      <form class="add" data-form="shop"><input type="text" id="full-shop-in" placeholder="예: 딸기, 우유 2개, 색연필" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+      <div class="shop-quick" aria-label="먹고 싶은 것 빠르게 고르기"></div>
+      <form class="add" data-form="shop"><input type="text" id="full-shop-in" placeholder="예: 치킨, 떡볶이, 우유 2개, 색연필" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
     </div>
   </section>
 
@@ -581,20 +571,6 @@ body.simple #nav a{font-size:14px}
       </form>
     </div>
     <div class="grid-people" id="school-cols"></div>
-  </section>
-
-  <!-- MENU -->
-  <section class="view" data-view="menu" hidden>
-    <div class="card">
-      <h2>🍽️ 먹고 싶은 메뉴 신청</h2>
-      <div class="sub">먹고 싶은 걸 적으면 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 먹고 싶으면 ‘나도!’를 눌러요.</div>
-      <div class="menu-quick" aria-label="빠르게 고르기"></div>
-      <form class="add" data-form="menu"><input type="text" placeholder="먹고 싶은 메뉴 (예: 치킨, 떡볶이)" maxlength="40" required aria-label="먹고 싶은 메뉴"><button class="btn">신청</button></form>
-    </div>
-    <div class="card">
-      <div class="card-h" style="flex-wrap:wrap;gap:8px"><h2 style="white-space:nowrap">신청 목록</h2><span class="chips" style="flex-wrap:nowrap"><span class="pill" id="menu-count"></span><button class="btn ghost" type="button" id="menu-clear" style="white-space:nowrap">먹은 것 정리</button></span></div>
-      <ul class="menu-list" id="menu-full"></ul>
-    </div>
   </section>
 
   <!-- MONEY -->
