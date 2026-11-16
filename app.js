@@ -85,7 +85,10 @@
   }
   addEventListener("hashchange", route);
   // 홈의 "할 일 추가": 할 일 화면으로 가서 바로 입력칸에 글을 쓸 수 있게 (아이폰 키보드가 뜨도록 누른 순간에 포커스)
-  $("home-add-todo").onclick = e => { e.preventDefault(); location.hash = "#todo"; route(); const t = $("ch-title"); if (t) { t.focus(); t.scrollIntoView({ block: "center" }); } };
+  const jumpTo = (hash, inputId) => e => { e.preventDefault(); location.hash = hash; route(); const t = $(inputId()); if (t) { t.focus(); t.scrollIntoView({ block: "center" }); } };
+  $("home-add-todo").onclick = jumpTo("#todo", () => "ch-title");
+  // 용돈기입장: 어른은 '용돈 보내기' 금액칸, 아이는 '쓴 돈 적기' 금액칸으로
+  $("home-add-money").onclick = jumpTo("#money", () => { const m = member(me); return m && isAdult(m) ? "mo-amt" : "sp-amt"; });
   // phones: 4 main tabs + 더보기 sheet with the rest
   (() => {
     const sheet = document.getElementById("more-sheet"), btn = document.getElementById("more-btn");
