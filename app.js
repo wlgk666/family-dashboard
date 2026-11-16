@@ -109,12 +109,12 @@
 
   // ---------- calendar ----------
   function monthCells() {
-    const first = new Date(cursor), start = addDays(first, -((first.getDay()+6)%7));
+    const first = new Date(cursor), start = addDays(first, -first.getDay()); // 일요일부터
     return Array.from({length:42}, (_,i) => addDays(start, i));
   }
   function renderMonth(box, big) {
     box.replaceChildren();
-    ["월","화","수","목","금","토","일"].forEach((d,i) => box.append(el("div","dw"+(i===6?" sun":""), d)));
+    DOW.forEach((d,i) => box.append(el("div","dw"+(i===0?" sun":""), d)));
     const t = todayStr(), cells = monthCells();
     const last = cells.slice(35).every(d => d.getMonth() !== cursor.getMonth()) ? 35 : 42;
     cells.slice(0,last).forEach(d => {
