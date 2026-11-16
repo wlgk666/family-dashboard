@@ -280,6 +280,9 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .stk{border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:22px;width:44px;height:40px;flex:none;line-height:1}
 .stk:hover{transform:translateY(-2px);border-color:var(--pink)}
 .chat-input input{border-radius:999px!important}
+/* 수다 입력칸: 긴 글은 줄바꿈되며 최대 5줄까지 늘어나요 */
+form.add.chat-input{align-items:flex-end}
+form.add.chat-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4em + 18px);border-radius:20px!important;resize:none;overflow-y:auto;line-height:1.4;max-height:calc(5 * 1.4em + 18px);padding:8px 14px!important;display:block}
 /* 조부모 간단 화면 */
 .simple-only{display:none}
 .room-tabs{margin:2px 0 6px}
@@ -475,7 +478,7 @@ body.simple #nav a{font-size:14px}
       <div class="card-h"><h2><svg class="i"><use href="#i-chat"/></svg>수다방</h2><a class="more" href="#board">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
       <div class="msgs chat" id="home-msgs" style="max-height:300px"></div>
       <div class="sticker-row" aria-label="스티커"></div>
-      <form class="add chat-input" data-form="msg"><input type="text" id="home-msg-in" placeholder="수다 떨기 💬" maxlength="300" required aria-label="메시지"><button class="btn">보내기</button></form>
+      <form class="add chat-input" data-form="msg"><textarea id="home-msg-in" rows="1" placeholder="수다 떨기 💬" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn">보내기</button></form>
     </div>
   </section>
 
@@ -633,7 +636,7 @@ body.simple #nav a{font-size:14px}
       <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. 📷 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
       <div class="msgs chat tall" id="board-msgs"></div>
       <div class="sticker-row" aria-label="스티커"></div>
-      <form class="add chat-input" data-form="msg"><input type="text" id="board-msg-in" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지"><button class="btn">보내기</button></form>
+      <form class="add chat-input" data-form="msg"><textarea id="board-msg-in" rows="1" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn">보내기</button></form>
     </div>
   </section>
 
@@ -720,7 +723,7 @@ body.simple #nav a{font-size:14px}
 <script src="config.js?v=4"></script>
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
-<input type="file" id="photo-in" accept="image/*" hidden>
+<input type="file" id="photo-in" accept="image/*" multiple hidden>
 <script src="app.js?v=27"></script>
 </body>
 </html>

@@ -533,12 +533,13 @@
   const curRoom = () => isSimple() ? "all" : room;
   const roomOf = mg => mg.room === "all" ? "all" : "home";
   const roomFor = node => node && node.closest('[data-view="board"]') ? curRoom() : "home";
-  function sendMsg(text, sticker, photo, rm) {
+  function sendMsg(text, sticker, photo, rm, nPhotos = 1) { // 여러 장 보낼 때: 0 = 알림 생략, 2 이상 = "사진 N장" 알림 한 번
     if (!ready()) return Promise.resolve();
     const r = rm === "all" ? "all" : "home";
     return db.collection("messages").add({ text, sticker: !!sticker, photo: photo || "", room: r, by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
+      if (!nPhotos) return;
       const w = member(me), to = r === "all" ? null : state.members.filter(m => m.kind !== "grand").map(m => m.id);
-      notify({ to, except: me || "", title: `${r === "all" ? "💞 온 가족" : "🏠 우리집"} · ${w ? w.name : "가족"}`, body: photo ? "📷 사진을 보냈어요" + (text ? " · " + text : "") : text, url: r === "all" ? "./#allchat" : "./#board", tag: "chat-" + r });
+      notify({ to, except: me || "", title: `${r === "all" ? "💞 온 가족" : "🏠 우리집"} · ${w ? w.name : "가족"}`, body: photo ? `📷 사진${nPhotos > 1 ? " " + nPhotos + "장" : ""}을 보냈어요` + (text ? " · " + text : "") : text, url: r === "all" ? "./#allchat" : "./#board", tag: "chat-" + r });
       const inRoom = state.messages.filter(m => roomOf(m) === r);
       if (inRoom.length >= 150) {
         const old = [...inRoom].sort((a,b) => a.createdAt - b.createdAt).slice(0, inRoom.length - 149);
@@ -627,21 +628,28 @@
     } finally { URL.revokeObjectURL(url); }
   }
   let photoForm = null;
+  const MAX_PHOTOS = 5; // 한 번에 보낼 수 있는 사진 수
   $$("form.chat-input").forEach(f => {
     const pb = el("button","photo-btn","📷"); pb.type = "button"; pb.setAttribute("aria-label","사진 보내기");
     pb.onclick = () => { if (!ready()) return; photoForm = f; $("photo-in").value = ""; $("photo-in").click(); };
     f.prepend(pb);
   });
   $("photo-in").onchange = async () => {
-    const file = $("photo-in").files[0]; if (!file || !ready()) return;
-    const btns = $$(".photo-btn"); btns.forEach(b => b.disabled = true); toast("사진 올리는 중… 📷");
-    try {
-      const ph = await shrinkPhoto(file);
-      const { id } = await db.collection("photo").add({ ...ph, by: me || "", createdAt: Date.now() });
-      const inp = photoForm && photoForm.querySelector("input[type=text]"), cap = inp ? inp.value.trim() : "";
-      if (inp) inp.value = "";
-      await sendMsg(cap, false, id, roomFor(photoForm));
-    } catch (e) { console.error(e); toast("사진을 보내지 못했어요. 다시 해 주세요."); }
+    const all = [...$("photo-in").files], files = all.slice(0, MAX_PHOTOS); if (!files.length || !ready()) return;
+    const btns = $$(".photo-btn"); btns.forEach(b => b.disabled = true);
+    toast(all.length > MAX_PHOTOS ? `사진은 한 번에 ${MAX_PHOTOS}장까지예요. 앞의 ${MAX_PHOTOS}장만 보낼게요 📷` : `사진 ${files.length > 1 ? files.length + "장 " : ""}올리는 중… 📷`);
+    const inp = photoForm && photoForm.querySelector("textarea"), cap = inp ? inp.value.trim() : "", rm = roomFor(photoForm);
+    let sent = 0;
+    for (const [i, file] of files.entries()) {
+      try {
+        const ph = await shrinkPhoto(file);
+        const { id } = await db.collection("photo").add({ ...ph, by: me || "", createdAt: Date.now() });
+        await sendMsg(sent === 0 ? cap : "", false, id, rm, i === files.length - 1 ? sent + 1 : 0); // 글은 첫 장에만, 알림은 마지막에 한 번
+        if (sent === 0 && inp) { inp.value = ""; fitMsgBox(inp); }
+        sent++;
+      } catch (e) { console.error(e); }
+    }
+    if (sent < files.length) toast(sent ? `사진 ${files.length - sent}장은 보내지 못했어요. 다시 해 주세요.` : "사진을 보내지 못했어요. 다시 해 주세요.");
     btns.forEach(b => b.disabled = false);
   };
   $("photo-view").onclick = () => { $("photo-view").hidden = true; };
@@ -777,8 +785,16 @@
       notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
-    ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
+    ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); sendMsg(text, false, "", roomFor(f));
   }));
+  // 수다 입력칸: 글이 길어지면 줄바꿈되며 자동으로 늘어나요 (휴대폰은 엔터 = 줄바꿈, 컴퓨터는 엔터 = 보내기 · Shift+엔터 = 줄바꿈)
+  function fitMsgBox(t) { const h0 = t.style.height; t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; if (t.style.height !== h0) requestAnimationFrame(chatToEnd); }
+  $$('form[data-form="msg"] textarea').forEach(t => {
+    t.addEventListener("input", () => fitMsgBox(t));
+    t.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && matchMedia("(hover:hover) and (pointer:fine)").matches) { e.preventDefault(); t.form.requestSubmit(); }
+    });
+  });
   $("sh-clear").onclick = async () => { if (!ready()) return; for (const s of state.shopping.filter(s => s.done)) { try { await db.doc("shopping/"+s.id).delete(); } catch(e) { fail(e); break; } } };
 
   async function seedExamples() {
