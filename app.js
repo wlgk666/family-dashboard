@@ -19,8 +19,10 @@
   const pad = n => String(n).padStart(2,"0");
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const todayStr = () => ymd(new Date());
-  // a daily chore counts as done only on the day it was checked
-  const fresh = c => c.daily && c.done && ymd(new Date(c.doneAt || 0)) !== todayStr() ? { ...c, done: false, doneBy: "", doneAt: 0 } : c;
+  // 매일 할 일: 체크한 날에만 '완료'. 새 하루는 아침 8시에 시작해요 (밤 12시~아침 8시엔 어제 체크한 것도 아직 완료로 보여요)
+  const DAILY_RESET_HOUR = 8;
+  const dailyDone = t => { const d = ymd(new Date(t || 0)); return d === todayStr() || (new Date().getHours() < DAILY_RESET_HOUR && d === ymd(addDays(new Date(), -1))); };
+  const fresh = c => c.daily && c.done && !dailyDone(c.doneAt) ? { ...c, done: false, doneBy: "", doneAt: 0 } : c;
   const pull = (st, n) => { const l = st ? st.list(n) : []; return n === "chores" ? l.map(fresh) : l; };
   const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
   const parseYmd = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
