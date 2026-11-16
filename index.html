@@ -148,6 +148,7 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .add-link{align-self:flex-end;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;text-decoration:none;color:var(--ink)}
 .add-links{align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .add-link[hidden]{display:none}
+@media (max-width:440px){.add-links{gap:6px}.add-links .add-link{padding:6px 10px}}
 .add-link:hover{border-color:var(--red);color:var(--red)}
 
 .av{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:none}
@@ -491,7 +492,7 @@ body.simple .card > .sticker-row{display:flex}
             </div>
             <div class="sub" id="home-sub"></div>
             <div class="evlist" id="home-list"></div>
-            <div class="add-links"><a class="add-link" id="home-add-todo" href="#todo"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg>할 일 추가</a><a class="add-link" id="home-add" href="#calendar"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg>일정 추가</a></div>
+            <div class="add-links"><a class="add-link" id="home-add-todo" href="#todo"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg>할 일 추가</a><a class="add-link" id="home-add-money" href="#money"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg>용돈기입장</a><a class="add-link" id="home-add" href="#calendar"><svg class="i" style="width:16px;height:16px"><use href="#i-plus"/></svg>일정 추가</a></div>
           </div>
         </div>
       </div>
@@ -762,6 +763,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>
