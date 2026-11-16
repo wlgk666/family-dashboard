@@ -313,6 +313,19 @@ body.simple #nav a{font-size:14px}
 .photo-view img{max-width:100%;max-height:calc(100vh - 80px);border-radius:10px}
 .photo-view .sub{color:#fff;text-align:center;margin-top:10px}
 .chat-input .btn{border-radius:999px;background:var(--pink)}
+/* 카톡처럼 하나로 합친 둥근 입력바: [+ 사진] [입력칸] [😊 스티커] [↑ 보내기] */
+form.add.chat-input{flex-wrap:nowrap;align-items:flex-end;gap:2px;background:var(--surface);border:1.5px solid var(--line);border-radius:24px;padding:4px}
+form.add.chat-input:focus-within{border-color:var(--pink)}
+form.add.chat-input textarea{border:0!important;background:transparent!important;border-radius:0!important;padding:8px 4px!important;height:calc(1.4em + 16px);max-height:calc(5 * 1.4em + 16px);outline:none;box-shadow:none}
+form.add.chat-input textarea:focus-visible{outline:none}
+.chat-input .photo-btn,.chat-input .emo-btn{flex:none;width:36px;height:36px;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;padding:0;color:var(--muted)}
+.chat-input .photo-btn{font-size:26px;font-weight:300;line-height:1}
+.chat-input .emo-btn{font-size:21px;filter:grayscale(1);opacity:.75}
+.chat-input .emo-btn[aria-pressed="true"]{filter:none;opacity:1}
+.chat-input .send-btn{flex:none;width:36px;height:36px;padding:0;border-radius:50%;font-size:19px;font-weight:800;line-height:1;display:grid;place-items:center}
+/* 스티커 줄은 😊를 누르면 열려요 (조부모 간단 화면은 늘 보여요) */
+.card:not(.stk-open) > .sticker-row{display:none}
+body.simple .card > .sticker-row{display:flex}
 
 /* ---- 용돈 ---- */
 .money-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
@@ -493,7 +506,7 @@ body.simple #nav a{font-size:14px}
       <div class="card-h"><h2><svg class="i"><use href="#i-chat"/></svg>수다방</h2><a class="more" href="#board">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
       <div class="msgs chat" id="home-msgs" style="max-height:300px"></div>
       <div class="sticker-row" aria-label="스티커"></div>
-      <form class="add chat-input" data-form="msg"><textarea id="home-msg-in" rows="1" placeholder="수다 떨기 💬" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn">보내기</button></form>
+      <form class="add chat-input" data-form="msg"><textarea id="home-msg-in" rows="1" placeholder="수다 떨기 💬" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn send-btn" aria-label="보내기">↑</button></form>
     </div>
   </section>
 
@@ -648,10 +661,10 @@ body.simple #nav a{font-size:14px}
     <div class="card">
       <div class="card-h"><h2 id="board-title">우리 가족 수다방 💬</h2><span class="chips" style="flex-wrap:nowrap"><button class="btn ghost noti-btn" type="button" hidden aria-label="이 기기 알림 켜기" title="알림 켜기">🔔</button><span class="pill" id="msg-count"></span></span></div>
       <div class="chips room-tabs" id="room-tabs" role="group" aria-label="수다방 고르기"><button type="button" class="chip t" data-room="home">🏠 우리 넷</button><button type="button" class="chip t" data-room="all">💞 온 가족 (할머니·할아버지)</button></div>
-      <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. 📷 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
+      <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
       <div class="msgs chat tall" id="board-msgs"></div>
       <div class="sticker-row" aria-label="스티커"></div>
-      <form class="add chat-input" data-form="msg"><textarea id="board-msg-in" rows="1" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn">보내기</button></form>
+      <form class="add chat-input" data-form="msg"><textarea id="board-msg-in" rows="1" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn send-btn" aria-label="보내기">↑</button></form>
     </div>
   </section>
 

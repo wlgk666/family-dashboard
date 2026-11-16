@@ -630,7 +630,7 @@
         col.append(line); row.append(col); box.append(row);
         lastBy = mg.by;
       });
-      if (!l.length) box.append(el("div","empty chat-empty","첫 수다를 시작해 보세요! 아래 스티커를 눌러도 돼요 💬"));
+      if (!l.length) box.append(el("div","empty chat-empty","첫 수다를 시작해 보세요! 😊를 누르면 스티커도 있어요 💬"));
       box.scrollTop = box.scrollHeight;
     });
     requestAnimationFrame(chatToEnd); // 글이 새로 오거나 위쪽 안내가 사라져도 최근 글이 보이게
@@ -677,9 +677,14 @@
   let photoForm = null;
   const MAX_PHOTOS = 5; // 한 번에 보낼 수 있는 사진 수
   $$("form.chat-input").forEach(f => {
-    const pb = el("button","photo-btn","📷"); pb.type = "button"; pb.setAttribute("aria-label","사진 보내기");
+    const pb = el("button","photo-btn","+"); pb.type = "button"; pb.setAttribute("aria-label","사진 보내기 (최대 5장)");
     pb.onclick = () => { if (!ready()) return; photoForm = f; $("photo-in").value = ""; $("photo-in").click(); };
     f.prepend(pb);
+    // 😊: 스티커 줄 열고 닫기 (자판은 그대로)
+    const card = f.closest(".card"), eb = el("button","emo-btn","😊"); eb.type = "button"; eb.setAttribute("aria-label","스티커"); eb.setAttribute("aria-pressed","false");
+    eb.addEventListener("pointerdown", e => { if (document.activeElement === f.querySelector("textarea")) e.preventDefault(); });
+    eb.onclick = () => { const on = card.classList.toggle("stk-open"); eb.setAttribute("aria-pressed", String(on)); requestAnimationFrame(chatToEnd); };
+    f.insertBefore(eb, f.querySelector(".send-btn"));
   });
   $("photo-in").onchange = async () => {
     const all = [...$("photo-in").files], files = all.slice(0, MAX_PHOTOS); if (!files.length || !ready()) return;
