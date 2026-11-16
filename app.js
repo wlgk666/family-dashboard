@@ -288,7 +288,13 @@
     ["김치","🥬"],["계란","🥚"],["달걀","🥚"],["두부","🧈"],["우유","🥛"],["요구르트","🥛"],["주스","🧃"],["콜라","🥤"],["사이다","🥤"],["음료","🥤"],
     ["색연필","🖍️"],["연필","✏️"],["지우개","🧽"],["공책","📓"],["스케치북","🎨"],["물감","🎨"],["색종이","📄"],["가위","✂️"],["테이프","📎"],["풀","🧴"],["실내화","👟"],["마스크","😷"],["풍선","🎈"]];
   // 한 글자(배·전·국·탕·회·죽·찜)는 끝에 올 때만: "광어회" O, "배추" X
-  const shopEmo = t => { t = t.replace(/\s*\d+\s*(개|봉지?|팩|병|통|판|인분|마리|kg|g)?\s*$/,"").trim(); return (FOOD_EMO.find(([k]) => k.length > 1 ? t.includes(k) : t === k || t.endsWith(k)) || [,"🛒"])[1]; };
+  const shopHit = t => { t = t.replace(/\s*\d+\s*(개|봉지?|팩|병|통|판|인분|마리|kg|g)?\s*$/,"").trim(); return FOOD_EMO.findIndex(([k]) => k.length > 1 ? t.includes(k) : t === k || t.endsWith(k)); };
+  const shopEmo = t => { const i = shopHit(t); return i < 0 ? "🛒" : FOOD_EMO[i][1]; };
+  // 음식(식사 메뉴)이면 "먹고 싶어요!", 간식·준비물·그 밖의 물건은 "사주세요!"
+  const MEAL_END = FOOD_EMO.findIndex(([k]) => k === "바나나우유"); // 이 앞까지가 식사 메뉴
+  const MEAL_EXTRA = ["수제비","쫄면","소시지","소세지"];
+  const isMeal = t => { const i = shopHit(t); return i >= 0 && (i < MEAL_END || MEAL_EXTRA.includes(FOOD_EMO[i][0])); };
+  const askWord = (t, done) => isMeal(t) ? (done ? "먹었어요!" : "먹고 싶어요!") : (done ? "샀어요!" : "사주세요!");
   // 빠른 고르기: 음식 / 간식 / 준비물 버튼을 누르면 그 안의 이모지 메뉴가 펼쳐져요
   const SHOP_QUICK = [
     ["음식","🍚",["김치찌개","된장찌개","순두부찌개","부대찌개","김치찜","갈비찜","닭볶음탕","미역국","떡국","불고기","제육볶음","삼겹살","닭갈비","족발","비빔밥","김치볶음밥","오므라이스","카레","김밥","유부초밥","떡볶이","치킨","돈가스","탕수육","라면","우동","짜장면","짬뽕","칼국수","잔치국수","냉면","쫄면","쌀국수","스파게티","피자","햄버거"]],
@@ -300,7 +306,7 @@
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!s.done; cb.setAttribute("aria-label", s.item + " 샀어요");
     cb.onchange = () => ready() && db.doc("shopping/"+s.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
     const g = el("div","grow"), ask = el("div","ask");
-    ask.append(document.createTextNode(s.item + " "), el("em", null, s.done ? "샀어요!" : "사주세요!"));
+    ask.append(document.createTextNode(s.item + " "), el("em", null, askWord(s.item, s.done)));
     g.append(ask);
     const fans = [s.by, ...(s.metoo || []).filter(id => id !== s.by)].filter(id => member(id));
     if (fans.length || full) {
@@ -343,7 +349,7 @@
     const open = list.filter(s => !s.done);
     open.slice(0,5).forEach(s => hs.append(shopRow(s,false)));
     if (open.length > 5) hs.append(el("li","meta",`외 ${open.length-5}개`));
-    if (!open.length) hs.append(el("li","empty","먹고 싶은 거나 필요한 걸 적으면 “김치찌개 사주세요!”처럼 올라가요 😋"));
+    if (!open.length) hs.append(el("li","empty","먹고 싶은 거나 필요한 걸 적으면 “김치찌개 먹고 싶어요!”, “과자 사주세요!”처럼 올라가요 😋"));
     const fs = $("shop-full"); fs.replaceChildren();
     list.forEach(s => fs.append(shopRow(s,true)));
     if (!list.length) fs.append(el("li","empty","떨어진 물건이 생기면 바로 적어 두세요."));
@@ -780,9 +786,9 @@
       toast(`‘${dup.item}’은 이미 있어요. 나도! 에 넣었어요`); return;
     }
     await db.collection("shopping").add({ item, done: false, by: me || "", metoo: [], createdAt: Date.now() });
-    toast(`${shopEmo(item)} ${item} 사주세요! 부탁했어요`);
+    toast(`${shopEmo(item)} ${item} ${askWord(item, false)} 부탁했어요`);
     { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
-      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#todo", tag: "shop" }); }
+      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} ${askWord(item, false)}`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); sendMsg(text, false, "", roomFor(f));
