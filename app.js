@@ -640,15 +640,15 @@
     const phone = matchMedia("(max-width:760px)").matches, ta = document.activeElement;
     const typing = phone && ta && ta.tagName === "TEXTAREA" && b.parentElement.contains(ta);
     document.body.classList.toggle("kb", typing);
+    const card = b.closest(".card");
     if (typing) {
-      // 휴대폰에서 글 쓰는 중(자판이 열림): 보이는 화면(visualViewport)에 수다창 + 입력칸을 딱 맞추고, 그 위치로 화면을 옮겨요
+      // 휴대폰에서 글 쓰는 중(자판이 열림): 수다 카드를 보이는 화면(visualViewport)에 딱 맞춰 고정해요.
+      // 입력칸이 줄바꿈으로 늘어나도 수다창만 줄어들고 입력칸은 늘 자판 바로 위에 있어요. (페이지 스크롤에 의존하지 않음)
       const vv = window.visualViewport, vh = vv ? vv.height : innerHeight, vTop = vv ? vv.offsetTop : 0;
-      const form = ta.form, under = form.getBoundingClientRect().bottom - b.getBoundingClientRect().bottom; // 스티커 + 입력칸
-      const h = Math.max(Math.floor(vh - 16 - under), 120);
-      b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = h + "px";
-      const want = b.getBoundingClientRect().top + scrollY - 8 - vTop; // 수다창 맨 위가 보이는 화면 맨 위에 오도록
-      if (Math.abs(scrollY - want) > 2) scrollTo(0, want);
+      card.style.top = Math.round(vTop + 6) + "px"; card.style.height = Math.floor(vh - 12) + "px";
+      b.style.minHeight = b.style.maxHeight = b.style.height = "";
     } else if (phone) {
+      card.style.top = card.style.height = "";
       // 휴대폰: 수다창 높이를 화면에 딱 맞춰서 최근 글과 입력칸이 하단 메뉴에 가리지 않게
       const rail = document.querySelector(".rail"), f0 = b.parentElement.querySelector("form.chat-input"), form = f0 && f0.offsetParent ? f0 : null;
       const navTop = rail ? rail.getBoundingClientRect().top : innerHeight;
@@ -656,12 +656,12 @@
       const h = Math.floor(navTop - 14 - under - (b.getBoundingClientRect().top + scrollY)); // 페이지 맨 위 기준
       b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = Math.max(h, 260) + "px";
       if (h < 260 && form) scrollTo(0, form.getBoundingClientRect().bottom + scrollY - (navTop - 14)); // 화면이 너무 작으면 페이지를 내려서 맞춤
-    } else b.style.minHeight = b.style.maxHeight = b.style.height = "";
+    } else { b.style.minHeight = b.style.maxHeight = b.style.height = ""; card.style.top = card.style.height = ""; }
     b.scrollTop = b.scrollHeight;
   }
   addEventListener("resize", () => requestAnimationFrame(chatToEnd));
   // 자판이 열리고 닫힐 때(아이폰은 window resize가 없어서 visualViewport로 알아요)
-  if (window.visualViewport) visualViewport.addEventListener("resize", () => requestAnimationFrame(chatToEnd));
+  if (window.visualViewport) ["resize","scroll"].forEach(ev => visualViewport.addEventListener(ev, () => { if (document.body.classList.contains("kb") || ev === "resize") requestAnimationFrame(chatToEnd); }));
   const PHOTO_DAYS = 7;
   // photos: one hidden file input; on iPhone/iPad it offers 사진 보관함 / 사진 찍기 / 파일 선택
   async function shrinkPhoto(file, max = 1280) {
@@ -832,7 +832,7 @@
       notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} ${askWord(item, false)}`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
-    ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); sendMsg(text, false, "", roomFor(f));
+    ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); [60, 300].forEach(ms => setTimeout(() => { if (!inp.value.trim()) inp.value = ""; fitMsgBox(inp); }, ms)); sendMsg(text, false, "", roomFor(f)); // 아이폰 한글 입력이 늦게 남기는 글자·줄바꿈까지 지우고 입력칸을 한 줄로
   }));
   // 수다 입력칸: 글이 길어지면 줄바꿈되며 자동으로 늘어나요 (휴대폰은 엔터 = 줄바꿈, 컴퓨터는 엔터 = 보내기 · Shift+엔터 = 줄바꿈)
   function fitMsgBox(t) { const h0 = t.style.height; t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; if (t.style.height !== h0) requestAnimationFrame(chatToEnd); }
