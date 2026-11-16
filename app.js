@@ -294,7 +294,7 @@
   const MEAL_END = FOOD_EMO.findIndex(([k]) => k === "바나나우유"); // 이 앞까지가 식사 메뉴
   const MEAL_EXTRA = ["수제비","쫄면","소시지","소세지"];
   const isMeal = t => { const i = shopHit(t); return i >= 0 && (i < MEAL_END || MEAL_EXTRA.includes(FOOD_EMO[i][0])); };
-  const askWord = (t, done) => isMeal(t) ? (done ? "먹었어요!" : "먹고 싶어요!") : (done ? "샀어요!" : "사주세요!");
+  const askWord = (t, done) => isMeal(t) ? (done ? "알겠어요!" : "먹고 싶어요!") : (done ? "샀어요!" : "사주세요!");
   // 빠른 고르기: 음식 / 간식 / 준비물 버튼을 누르면 그 안의 이모지 메뉴가 펼쳐져요
   const SHOP_QUICK = [
     ["음식","🍚",["김치찌개","된장찌개","순두부찌개","부대찌개","김치찜","갈비찜","닭볶음탕","미역국","떡국","불고기","제육볶음","삼겹살","닭갈비","족발","비빔밥","김치볶음밥","오므라이스","카레","김밥","유부초밥","떡볶이","치킨","돈가스","탕수육","라면","우동","짜장면","짬뽕","칼국수","잔치국수","냉면","쫄면","쌀국수","스파게티","피자","햄버거"]],
@@ -312,7 +312,7 @@
     if (fans.length || full) {
       const by = el("div","by meta");
       fans.forEach(id => by.append(avatar(member(id), true)));
-      const when = s.done && s.doneAt ? `${nameOf0(s.doneBy) ? "산 사람 " + nameOf0(s.doneBy) + " " : ""}${ago(s.doneAt)}` : (s.createdAt ? ago(s.createdAt) : "");
+      const when = s.done && s.doneAt ? `${nameOf0(s.doneBy) ? (isMeal(s.item) ? "확인 " : "산 사람 ") + nameOf0(s.doneBy) + " " : ""}${ago(s.doneAt)}` : (s.createdAt ? ago(s.createdAt) : "");
       by.append(document.createTextNode(" " + [fans.map(nameOf0).join(", "), when].filter(Boolean).join(" · ")));
       g.append(by);
     }
