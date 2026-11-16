@@ -322,7 +322,7 @@
   }
   $$(".shop-quick").forEach(box => {
     const tabs = el("div","sq-tabs"), pick = el("div","sq-pick"); pick.hidden = true;
-    const inp = box.parentElement.querySelector('form[data-form="shop"] input');
+    const inp = box.parentElement.querySelector('form[data-form="shop"] textarea');
     let cur = null;
     const show = cat => {
       cur = cur === cat ? null : cat;
@@ -330,7 +330,7 @@
       pick.replaceChildren(); pick.hidden = !cur; if (!cur) return;
       SHOP_QUICK.find(c => c[0] === cur)[2].forEach(item => {
         const b = el("button","sq-item"); b.type = "button"; b.append(el("span","e",shopEmo(item)), el("span","n",item));
-        b.onclick = () => { inp.value = item; inp.focus(); [...pick.children].forEach(x => x.classList.toggle("on", x === b)); };
+        b.onclick = () => { inp.value = item; fitMsgBox(inp); inp.focus(); [...pick.children].forEach(x => x.classList.toggle("on", x === b)); };
         pick.append(b);
       });
     };
@@ -773,7 +773,7 @@
     toast(`${name} 선수 등록 완료`);
   }));
   $$('form[data-form="shop"]').forEach(f => f.addEventListener("submit", guard(async form => {
-    const inp = form.querySelector("input"), item = inp.value.trim(); if (!item) return; inp.value = "";
+    const inp = form.querySelector("textarea"), item = inp.value.replace(/\s+/g, " ").trim(); if (!item) return; inp.value = ""; fitMsgBox(inp);
     const dup = state.shopping.find(s => !s.done && s.item.replace(/\s/g,"") === item.replace(/\s/g,""));
     if (dup) { // 이미 있는 건 새로 만들지 않고 ‘나도!’에 넣어요
       if (member(me) && dup.by !== me && !(dup.metoo || []).includes(me)) await db.doc("shopping/"+dup.id).update({ metoo: [...(dup.metoo||[]), me] });
@@ -789,6 +789,11 @@
   }));
   // 수다 입력칸: 글이 길어지면 줄바꿈되며 자동으로 늘어나요 (휴대폰은 엔터 = 줄바꿈, 컴퓨터는 엔터 = 보내기 · Shift+엔터 = 줄바꿈)
   function fitMsgBox(t) { const h0 = t.style.height; t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; if (t.style.height !== h0) requestAnimationFrame(chatToEnd); }
+  // 저녁메뉴 및 사주세요 입력칸도 길어지면 늘어나요. 여기선 엔터 = 추가 (줄바꿈 없음)
+  $$('form[data-form="shop"] textarea').forEach(t => {
+    t.addEventListener("input", () => fitMsgBox(t));
+    t.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); t.form.requestSubmit(); } });
+  });
   $$('form[data-form="msg"] textarea').forEach(t => {
     t.addEventListener("input", () => fitMsgBox(t));
     t.addEventListener("keydown", e => {
