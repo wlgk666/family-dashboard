@@ -299,7 +299,18 @@ form.add.chat-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4e
 .simple-only{display:none}
 .room-tabs{margin:2px 0 6px}
 .room-tabs .chip{font-size:14px;padding:6px 14px}
-body.simple .room-tabs{display:none}
+@media (max-width:760px){.room-tabs .wide{display:none}}
+body.simple .room-tabs .chip[data-room="home"]{display:none}
+.dm-unread{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:999px;background:var(--pink);color:#fff;font-size:11px;font-weight:800}
+.dm-pick{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.dm-who{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:inherit;border-radius:16px;padding:10px 12px;font:inherit;cursor:pointer}
+.dm-who:hover{border-color:var(--pink)}
+.dm-who .av{width:38px;height:38px;font-size:15px}
+.dm-who .dm-mid{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dm-who .dm-name{font-weight:700}
+.dm-who .dm-last{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-who .dm-end{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none;font-size:11px;color:var(--muted)}
+.dm-who .dm-unread{margin-left:0}
 body.simple #naver-card{display:none}
 body.simple .simple-only{display:block}
 body.simple #nav a:not([data-v="calendar"]):not([data-v="allchat"]):not([data-v="money"]){display:none}
@@ -663,8 +674,9 @@ body.simple .card > .sticker-row{display:flex}
   <section class="view" data-view="board" hidden>
     <div class="card">
       <div class="card-h"><h2 id="board-title">우리 가족 수다방 💬</h2><span class="chips" style="flex-wrap:nowrap"><button class="btn ghost noti-btn" type="button" hidden aria-label="이 기기 알림 켜기" title="알림 켜기">🔔</button><span class="pill" id="msg-count"></span></span></div>
-      <div class="chips room-tabs" id="room-tabs" role="group" aria-label="수다방 고르기"><button type="button" class="chip t" data-room="home">🏠 우리 넷</button><button type="button" class="chip t" data-room="all">💞 온 가족 (할머니·할아버지)</button></div>
-      <div class="sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
+      <div class="chips room-tabs" id="room-tabs" role="group" aria-label="수다방 고르기"><button type="button" class="chip t" data-room="home">🏠 우리 넷</button><button type="button" class="chip t" data-room="all">💞 온 가족<span class="wide"> (할머니·할아버지)</span></button><button type="button" class="chip t" data-room="dm">💌 1:1<span class="dm-unread" id="dm-unread" hidden></span></button></div>
+      <div class="dm-pick" id="dm-pick" hidden></div>
+      <div class="sub" id="board-sub">말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.</div>
       <div class="msgs chat tall" id="board-msgs"></div>
       <div class="sticker-row" aria-label="스티커"></div>
       <form class="add chat-input" data-form="msg"><textarea id="board-msg-in" rows="1" placeholder="오늘 학교에서 무슨 일 있었어?" maxlength="300" required aria-label="메시지" enterkeyhint="enter"></textarea><button class="btn send-btn" aria-label="보내기">↑</button></form>
@@ -763,6 +775,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
