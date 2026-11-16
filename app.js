@@ -266,22 +266,48 @@
     const src = el("span"); if (wx) src.append(document.createTextNode((wx.source || "") + " · ")); src.append(a); foot.append(src);
     w.append(foot);
   }
+  // 사 주세요: 먹고 싶은 메뉴와 필요한 물건을 한 목록에. 누가 부탁했는지, 같이 원하는 사람(나도!)이 보여요.
+  const FOOD_EMO = [["치킨","🍗"],["닭","🍗"],["피자","🍕"],["햄버거","🍔"],["버거","🍔"],["떡볶이","🌶️"],["라면","🍜"],["짜장","🍜"],["짬뽕","🍜"],["국수","🍜"],["우동","🍜"],["마라","🍜"],["초밥","🍣"],["돈가스","🍱"],["돈까스","🍱"],["고기","🥩"],["삼겹","🥓"],["갈비","🥩"],["스테이크","🥩"],["김밥","🍙"],["주먹밥","🍙"],["카레","🍛"],["스파게티","🍝"],["파스타","🍝"],["케이크","🍰"],["도넛","🍩"],["아이스크림","🍦"],["빙수","🍧"],["과자","🍪"],["쿠키","🍪"],["초콜릿","🍫"],["사탕","🍬"],["젤리","🍬"],["탕후루","🍡"],["떡","🍡"],["빵","🍞"],["딸기","🍓"],["수박","🍉"],["포도","🍇"],["귤","🍊"],["사과","🍎"],["바나나","🍌"],["만두","🥟"],["핫도그","🌭"],["감자","🍟"],["샌드위치","🥪"],["우유","🥛"],["계란","🥚"],["달걀","🥚"],["주스","🧃"],["콜라","🥤"],["음료","🥤"],["새우","🍤"],["튀김","🍤"],["색연필","🖍️"],["연필","✏️"],["공책","📓"],["풍선","🎈"]];
+  const shopEmo = t => (FOOD_EMO.find(([k]) => t.includes(k)) || [,"🛒"])[1];
+  const SHOP_QUICK = ["치킨","피자","떡볶이","햄버거","초밥","라면","돈가스","아이스크림"];
+  const nameOf0 = id => (member(id) || {}).name || "";
   function shopRow(s, full) {
-    const li = el("li", s.done ? "done" : "");
-    const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!s.done; cb.setAttribute("aria-label", s.item);
-    cb.onchange = () => ready() && db.doc("shopping/"+s.id).update({ done: cb.checked }).catch(fail);
-    const g = el("div","grow"); g.append(el("div",null,s.item));
-    const m = member(s.by); if (full && m) g.append(el("div","meta",`적은 사람: ${m.name}`));
-    li.append(cb, g, xBtn(s.item, del("shopping", s.id)));
+    const li = el("li", "shop-row" + (s.done ? " done" : ""));
+    const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!s.done; cb.setAttribute("aria-label", s.item + " 샀어요");
+    cb.onchange = () => ready() && db.doc("shopping/"+s.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
+    const g = el("div","grow"), ask = el("div","ask");
+    ask.append(document.createTextNode(s.item + " "), el("em", null, s.done ? "샀어요!" : "사주세요!"));
+    g.append(ask);
+    const fans = [s.by, ...(s.metoo || []).filter(id => id !== s.by)].filter(id => member(id));
+    if (fans.length || full) {
+      const by = el("div","by meta");
+      fans.forEach(id => by.append(avatar(member(id), true)));
+      const when = s.done && s.doneAt ? `${nameOf0(s.doneBy) ? "산 사람 " + nameOf0(s.doneBy) + " " : ""}${ago(s.doneAt)}` : (s.createdAt ? ago(s.createdAt) : "");
+      by.append(document.createTextNode(" " + [fans.map(nameOf0).join(", "), when].filter(Boolean).join(" · ")));
+      g.append(by);
+    }
+    li.append(cb, el("span","emo",shopEmo(s.item)), g);
+    if (!s.done && member(me) && s.by !== me) {
+      const on = (s.metoo || []).includes(me), b = el("button","metoo", on ? "나도! ✓" : "나도!");
+      b.type = "button"; b.setAttribute("aria-pressed", String(on)); b.title = "나도 이거 원해요";
+      b.onclick = () => ready() && db.doc("shopping/"+s.id).update({ metoo: on ? (s.metoo||[]).filter(x => x !== me) : [...(s.metoo||[]), me] }).catch(fail);
+      li.append(b);
+    }
+    li.append(xBtn(s.item, del("shopping", s.id)));
     return li;
   }
+  $$(".shop-quick").forEach(box => SHOP_QUICK.forEach(item => {
+    const c = el("button","chip t", shopEmo(item) + " " + item); c.type = "button";
+    c.onclick = () => { const inp = box.parentElement.querySelector('form[data-form="shop"] input'); inp.value = item; inp.focus(); };
+    box.append(c);
+  }));
   function renderShopping() {
-    const list = [...state.shopping].sort((a,b) => (a.done-b.done) || (a.createdAt-b.createdAt));
+    const list = [...state.shopping].sort((a,b) => (a.done-b.done) || (a.done ? (b.doneAt||0)-(a.doneAt||0) : (b.createdAt||0)-(a.createdAt||0)));
     const hs = $("home-shop"); hs.replaceChildren();
     const open = list.filter(s => !s.done);
     open.slice(0,5).forEach(s => hs.append(shopRow(s,false)));
     if (open.length > 5) hs.append(el("li","meta",`외 ${open.length-5}개`));
-    if (!open.length) hs.append(el("li","empty","아직 부탁한 게 없어요. 먹고 싶은 걸 적어 봐요!"));
+    if (!open.length) hs.append(el("li","empty","먹고 싶은 거나 필요한 걸 적으면 “치킨 사주세요!”처럼 올라가요 😋"));
     const fs = $("shop-full"); fs.replaceChildren();
     list.forEach(s => fs.append(shopRow(s,true)));
     if (!list.length) fs.append(el("li","empty","떨어진 물건이 생기면 바로 적어 두세요."));
@@ -704,9 +730,15 @@
   }));
   $$('form[data-form="shop"]').forEach(f => f.addEventListener("submit", guard(async form => {
     const inp = form.querySelector("input"), item = inp.value.trim(); if (!item) return; inp.value = "";
-    await db.collection("shopping").add({ item, done: false, by: me || "", createdAt: Date.now() });
+    const dup = state.shopping.find(s => !s.done && s.item.replace(/\s/g,"") === item.replace(/\s/g,""));
+    if (dup) { // 이미 있는 건 새로 만들지 않고 ‘나도!’에 넣어요
+      if (member(me) && dup.by !== me && !(dup.metoo || []).includes(me)) await db.doc("shopping/"+dup.id).update({ metoo: [...(dup.metoo||[]), me] });
+      toast(`‘${dup.item}’은 이미 있어요. 나도! 에 넣었어요`); return;
+    }
+    await db.collection("shopping").add({ item, done: false, by: me || "", metoo: [], createdAt: Date.now() });
+    toast(`${shopEmo(item)} ${item} 사주세요! 부탁했어요`);
     { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
-      notify({ to: adults, except: me || "", title: "🛒 사 주세요!", body: `${w ? w.name : "가족"}: ${item}`, url: "./#todo", tag: "shop" }); }
+      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 사 주세요!`, body: `${w ? w.name : "가족"}: ${item} 사주세요!`, url: "./#todo", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("input"), text = inp.value.trim(); if (!text) return; inp.value = ""; sendMsg(text, false, "", roomFor(f));
@@ -724,7 +756,7 @@
     for (const [d,start,end,title,memberIds,game] of evs) await add("events",{ title, date: ymd(addDays(t,d)), start, end, memberIds, game, by: ids[0], createdAt: n });
     for (const [title,mi] of [["수학 익힘 48–51쪽",2],["하루 15분 책 읽기",2],["독서 카드에 감상 한 줄",3],["저녁에 책상 정리",3],["아침 약 먹기 💊",0],["분리수거 내놓기",1]]) await add("chores",{ title, memberId: ids[mi], daily: title.includes("약"), done: false, doneBy: "", doneAt: 0, createdAt: n });
     for (const [title,cat,mi] of [["미술 시간 색종이·풀","준비물",2],["가을 현장학습 안내","학교 공지",2],["현장학습 참가 여부 확인","체크 항목",3]]) await add("notices",{ title, category: cat, date: ymd(addDays(t,3)), memberId: ids[mi], done: false, createdAt: n });
-    for (const item of ["우유 2개","계란 한 판","응원용 막대풍선"]) await add("shopping",{ item, done: false, by: ids[0], createdAt: n });
+    for (const [item,bi] of [["치킨",2],["떡볶이",3],["우유 2개",0],["응원용 막대풍선",0]]) await add("shopping",{ item, done: false, by: ids[bi], metoo: item === "치킨" ? [ids[3]] : [], createdAt: n });
     await add("diary",{ text: "오늘 도서관에서 야구 만화책을 빌렸다. 주말 직관이 기다려진다!", date: todayStr(), mood: "홈런", by: ids[2], createdAt: n });
     await add("messages",{ text: "토요일 직관 가는 사람 저녁 6시까지 준비!", by: ids[1], hearts: [ids[2]], createdAt: n - 600e3 });
     await add("messages",{ text: "나 갈래!! 막대풍선 챙겨갈게", by: ids[2], hearts: [ids[1], ids[0]], createdAt: n - 300e3 });
