@@ -236,6 +236,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
   input,select,textarea{font-size:16px!important}
   /* 하단 메뉴: 화면 아래에 딱 붙여 고정, 5칸을 똑같은 폭으로 */
   .rail{position:fixed;left:0;right:0;bottom:0;max-width:100vw;transform:translateZ(0)}
+  body.kb .rail{display:none} /* 수다 쓰는 중엔 하단 메뉴를 숨겨 입력칸을 가리지 않게 */
   .rail nav{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px}
   .rail a,.rail .more-btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(8px,env(safe-area-inset-right,0px)) max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) max(8px,env(safe-area-inset-left,0px))}
@@ -283,6 +284,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 /* 수다 입력칸: 긴 글은 줄바꿈되며 최대 5줄까지 늘어나요 */
 form.add.chat-input{align-items:flex-end}
 form.add.grow-input{align-items:flex-end}
+form.add textarea[rows="1"]::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 form.add.grow-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4em + 18px);resize:none;overflow-y:auto;line-height:1.4;max-height:calc(5 * 1.4em + 18px);display:block}
 form.add.chat-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4em + 18px);border-radius:20px!important;resize:none;overflow-y:auto;line-height:1.4;max-height:calc(5 * 1.4em + 18px);padding:8px 14px!important;display:block}
 /* 조부모 간단 화면 */
