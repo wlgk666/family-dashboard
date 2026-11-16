@@ -135,15 +135,14 @@
   function evRow(e, opts = {}) {
     const r = el("div","ev-row");
     r.append(el("span","rel", relDay(e.date)), el("span","tm", timeLabel(e)));
-    const tt = el("span","tt"); const ty = typeOf(e); if (ty) { const bd = el("span","badge", ty[1] + " " + ty[2]); bd.style.color = ty[3]; bd.style.background = `color-mix(in srgb, ${ty[3]} 14%, transparent)`; tt.append(bd); } tt.append(document.createTextNode(e.title)); r.append(tt);
+    const tt = el("span","tt"); const ty = typeOf(e); if (ty) { const bd = el("span","badge", ty[1] + " " + ty[2]); bd.style.color = ty[3]; bd.style.background = `color-mix(in srgb, ${ty[3]} 14%, transparent)`; tt.append(bd); } tt.append(document.createTextNode(e.title), editedMark(e)); r.append(tt);
     const st = el("span","stack"); const ids = who(e);
     (ids.length ? ids.map(member).filter(Boolean) : [null]).slice(0,4).forEach(m => st.append(avatar(m, true)));
     r.append(st);
     if (repeats(e)) { const rb = el("span","badge","🔁"); rb.title = e.until ? `${fmtDay(e.until)}까지 매주` : "매주 반복"; rb.style.cssText = "color:var(--m5);background:color-mix(in srgb, var(--m5) 14%, transparent)"; tt.prepend(rb); }
     if (e.src === "naver") { const nb = el("span","badge","N"); nb.title = "네이버 캘린더에서 가져온 일정"; nb.style.cssText = "color:#03a94d;background:#e3f7ea"; tt.prepend(nb); }
     if (opts.del) {
-      const ed = el("button","x","✎"); ed.type = "button"; ed.setAttribute("aria-label", e.title + " 고치기"); ed.onclick = () => editEvent(e);
-      r.append(ed, xBtn(e.title, repeats(e) ? () => delRepeat(e) : del("events", e.id)));
+      r.append(editBtn(e.title, () => editEvent(e)), xBtn(e.title, repeats(e) ? () => delRepeat(e) : del("events", e.id)));
     }
     return r;
   }
@@ -168,6 +167,32 @@
       box.hidden = false; btns.firstChild && btns.firstChild.focus();
     });
   }
+  // 고치기 창: editText(제목, 지금 글, 최대 글자 수) → 고친 글 (취소하면 null)
+  function editText(title, value, max) {
+    return new Promise(res => {
+      const box = $("edit"), t = $("edit-in");
+      $("edit-title").textContent = title; t.maxLength = max || 300; t.value = value || "";
+      const done = v => { box.hidden = true; box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
+      $("edit-ok").onclick = () => done(t.value);
+      $("edit-cancel").onclick = () => done(null);
+      box.onclick = ev => { if (ev.target === box) done(null); };
+      box.hidden = false; fitEditBox(); t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+    });
+  }
+  function fitEditBox() { const t = $("edit-in"); t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; }
+  $("edit-in").addEventListener("input", fitEditBox);
+  // 내가 쓴 글 고치기: 그대로면 저장하지 않고, 고친 글엔 editedAt 을 남겨 "(수정됨)"으로 보여요
+  async function editField(col, item, field, title, o = {}) {
+    if (!ready()) return;
+    let v = await editText(title, item[field], o.max);
+    if (v == null) return;
+    v = o.oneLine ? v.replace(/\s+/g, " ").trim() : v.trim();
+    if (v === (item[field] || "")) return;
+    if (!v && !o.empty) return toast("내용을 적어 주세요.");
+    try { await db.doc(`${col}/${item.id}`).update({ [field]: v, editedAt: Date.now() }); toast("고쳤어요"); } catch (x) { fail(x); }
+  }
+  const editBtn = (label, fn) => { const b = el("button","x ed","✎"); b.type = "button"; b.setAttribute("aria-label", label + " 고치기"); b.onclick = fn; return b; };
+  const editedMark = it => it.editedAt ? el("span","edited","(수정됨)") : document.createTextNode("");
   function upcoming(days) {
     const t = todayStr(), end = days ? ymd(addDays(new Date(), days)) : "9999";
     return eventsBetween(t, end);
@@ -306,7 +331,7 @@
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!s.done; cb.setAttribute("aria-label", s.item + " 샀어요");
     cb.onchange = () => ready() && db.doc("shopping/"+s.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
     const g = el("div","grow"), ask = el("div","ask");
-    ask.append(document.createTextNode(s.item + " "), el("em", null, askWord(s.item, s.done)));
+    ask.append(document.createTextNode(s.item + " "), el("em", null, askWord(s.item, s.done)), editedMark(s));
     g.append(ask);
     const fans = [s.by, ...(s.metoo || []).filter(id => id !== s.by)].filter(id => member(id));
     if (fans.length || full) {
@@ -323,6 +348,7 @@
       b.onclick = () => ready() && db.doc("shopping/"+s.id).update({ metoo: on ? (s.metoo||[]).filter(x => x !== me) : [...(s.metoo||[]), me] }).catch(fail);
       li.append(b);
     }
+    if (s.by === me || !member(s.by)) li.append(editBtn(s.item, () => editField("shopping", s, "item", "적은 것 고치기", { max: 60, oneLine: true }))); // 적은 사람만 고쳐요
     li.append(xBtn(s.item, del("shopping", s.id)));
     return li;
   }
@@ -369,9 +395,9 @@
     const li = el("li", c.done ? "done" : "");
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!c.done; cb.setAttribute("aria-label", c.title);
     cb.onchange = () => ready() && db.doc("chores/"+c.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
-    const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title); g.append(t);
+    const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title, editedMark(c)); g.append(t);
     if (c.done) { const by = member(c.doneBy); g.append(el("div","meta",`${by ? by.name : "누군가"} 완료 · ${ago(c.doneAt)}`)); }
-    li.append(cb, g, xBtn(c.title, del("chores", c.id)));
+    li.append(cb, g, editBtn(c.title, () => editField("chores", c, "title", "할 일 고치기", { max: 100, oneLine: true })), xBtn(c.title, del("chores", c.id)));
     return li;
   }
   const catCls = c => c === "준비물" ? "prep" : c === "체크 항목" ? "chk" : "ann";
@@ -379,9 +405,9 @@
     const li = el("li", n.done ? "done" : "");
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!n.done; cb.setAttribute("aria-label", n.title);
     cb.onchange = () => ready() && db.doc("notices/"+n.id).update({ done: cb.checked }).catch(fail);
-    const g = el("div","grow"); const line = el("div"); line.append(el("span","cat "+catCls(n.category), n.category), document.createTextNode(n.title)); g.append(line);
+    const g = el("div","grow"); const line = el("div"); line.append(el("span","cat "+catCls(n.category), n.category), document.createTextNode(n.title), editedMark(n)); g.append(line);
     if (n.date) g.append(el("div","meta", `${fmtDay(n.date)}까지`));
-    li.append(cb, g, xBtn(n.title, del("notices", n.id)));
+    li.append(cb, g, editBtn(n.title, () => editField("notices", n, "title", "통신문 고치기", { max: 100, oneLine: true })), xBtn(n.title, del("notices", n.id)));
     return li;
   }
   const choresOf = id => state.chores.filter(c => c.memberId === id).sort((a,b) => (a.done-b.done) || (b.createdAt-a.createdAt));
@@ -447,10 +473,10 @@
   function diaryCard(d, withDel) {
     const c = el("div","diary"), m = member(d.by);
     const hd = el("div","hd"); hd.append(avatar(m,true));
-    const t = el("div","grow"); t.append(el("strong",null, m ? m.name : "가족"), el("span","meta", "  " + (d.date ? fmtDay(d.date) : ago(d.createdAt))));
+    const t = el("div","grow"); t.append(el("strong",null, m ? m.name : "가족"), el("span","meta", "  " + (d.date ? fmtDay(d.date) : ago(d.createdAt))), editedMark(d));
     hd.append(t);
     const mood = MOODS.find(x => x[0] === d.mood); if (mood) { const b = el("span","mood", mood[0]); b.style.background = mood[1]; hd.append(b); }
-    if (withDel) hd.append(xBtn("일기", del("diary", d.id)));
+    if (withDel) hd.append(editBtn("일기", () => editField("diary", d, "text", "일기 고치기", { max: 2000 })), xBtn("일기", del("diary", d.id)));
     c.append(hd, el("div","t", d.text));
     return c;
   }
@@ -597,6 +623,8 @@
         const hb = el("button","heart" + ((mg.hearts||[]).includes(me) ? " on" : ""), hearts ? `♥ ${hearts}` : "♡");
         hb.type = "button"; hb.setAttribute("aria-label","하트 누르기"); hb.onclick = () => toggleHeart(mg);
         side.append(hb, el("span","chat-time", `${d.getHours() < 12 ? "오전" : "오후"} ${((d.getHours()+11)%12)+1}:${pad(d.getMinutes())}`));
+        if (mg.editedAt) side.append(el("span","chat-time","수정됨"));
+        if (mine && !mg.sticker) { const ed = editBtn("메시지", () => editField("messages", mg, "text", mg.photo ? "사진 설명 고치기" : "메시지 고치기", { max: 300, empty: !!mg.photo })); ed.classList.add("chat-x"); side.append(ed); }
         if (mine) { const x = xBtn("메시지", del("messages", mg.id)); x.classList.add("chat-x"); if (mg.photo) { const d0 = x.onclick; x.onclick = e => { d0 && d0(e); db && db.doc("photo/"+mg.photo).delete().catch(() => {}); }; } side.append(x); }
         line.append(b, side);
         col.append(line); row.append(col); box.append(row);

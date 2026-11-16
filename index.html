@@ -340,6 +340,12 @@ body.simple #nav a{font-size:14px}
 .pop-bal{font-size:13px;color:var(--muted);margin-bottom:8px}
 .pop .btn{width:100%;padding:12px;font-size:16px;border-radius:14px}
 .ask-title{font-weight:700;font-size:17px;margin-bottom:6px}
+.edited{font-size:11px;color:var(--muted);font-weight:400;margin-left:5px;white-space:nowrap}
+.x.ed{font-size:15px}
+#edit{align-items:start}
+#edit .pop-card{max-width:440px;margin-top:8vh;gap:10px}
+#edit-in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;min-height:calc(2 * 1.45em + 22px);max-height:45vh;line-height:1.45;resize:none;overflow-y:auto;text-align:left}
+.edit-btns{display:flex;gap:8px;width:100%}
 .ask-sub{font-size:14px;color:var(--muted);margin-bottom:6px}
 .pop .btn.ghost{color:var(--ink)}
 /* ---- diary lock ---- */
@@ -721,11 +727,19 @@ body.simple #nav a{font-size:14px}
   </div>
 </div>
 
+<div class="pop" id="edit" hidden role="dialog" aria-modal="true" aria-labelledby="edit-title">
+  <div class="pop-card">
+    <div class="ask-title" id="edit-title"></div>
+    <textarea id="edit-in" rows="2" aria-label="고칠 내용"></textarea>
+    <div class="edit-btns"><button class="btn ghost" type="button" id="edit-cancel">취소</button><button class="btn" type="button" id="edit-ok">저장</button></div>
+  </div>
+</div>
+
 <script src="vendor/supabase-2.58.0.js"></script>
 <script src="config.js?v=4"></script>
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>
