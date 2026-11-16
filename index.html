@@ -282,6 +282,8 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .chat-input input{border-radius:999px!important}
 /* 수다 입력칸: 긴 글은 줄바꿈되며 최대 5줄까지 늘어나요 */
 form.add.chat-input{align-items:flex-end}
+form.add.grow-input{align-items:flex-end}
+form.add.grow-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4em + 18px);resize:none;overflow-y:auto;line-height:1.4;max-height:calc(5 * 1.4em + 18px);display:block}
 form.add.chat-input textarea{flex:1 1 0;width:auto;min-height:0;height:calc(1.4em + 18px);border-radius:20px!important;resize:none;overflow-y:auto;line-height:1.4;max-height:calc(5 * 1.4em + 18px);padding:8px 14px!important;display:block}
 /* 조부모 간단 화면 */
 .simple-only{display:none}
@@ -470,7 +472,7 @@ body.simple #nav a{font-size:14px}
         <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>저녁메뉴 및 사주세요 🍽️</h2><a class="more" href="#todo">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
         <ul class="list" id="home-shop"></ul>
         <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
-        <form class="add" data-form="shop"><input type="text" id="home-shop-in" placeholder="저녁메뉴, 필요한 거 (예: 김치찌개, 우유)" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+        <form class="add grow-input" data-form="shop"><textarea id="home-shop-in" rows="1" placeholder="저녁메뉴, 필요한 거 (예: 김치찌개, 우유)" maxlength="60" required aria-label="살 것" enterkeyhint="done"></textarea><button class="btn">추가</button></form>
       </div>
     </div>
     <div class="grid-people" id="people"></div>
@@ -564,7 +566,7 @@ body.simple #nav a{font-size:14px}
       <div class="sub" style="margin:-4px 0 4px">먹고 싶은 저녁메뉴나 필요한 물건을 적으면 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 갖고 싶으면 ‘나도!’를 눌러요.</div>
       <ul class="list lined" id="shop-full"></ul>
       <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
-      <form class="add" data-form="shop"><input type="text" id="full-shop-in" placeholder="예: 김치찜, 불고기, 우유 2개, 색연필" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+      <form class="add grow-input" data-form="shop"><textarea id="full-shop-in" rows="1" placeholder="예: 김치찜, 불고기, 우유 2개, 색연필" maxlength="60" required aria-label="살 것" enterkeyhint="done"></textarea><button class="btn">추가</button></form>
     </div>
   </section>
 
