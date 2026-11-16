@@ -365,7 +365,7 @@ body.simple #nav a{font-size:14px}
 .more-sheet[hidden]{display:none}
 .more-sheet a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:14px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;background:var(--tint)}
 .more-sheet a[aria-current="page"]{background:var(--navy);color:#fff}
-/* ---- 사 주세요 (먹고 싶은 것·필요한 것) ---- */
+/* ---- 저녁메뉴 및 사주세요 (먹고 싶은 것·필요한 것) ---- */
 .shop-row .emo{font-size:24px;line-height:1;flex:none;width:30px;text-align:center}
 .shop-row .ask{font-weight:600;overflow-wrap:anywhere}
 .shop-row .ask em{font-style:normal;color:var(--red);font-weight:700}
@@ -374,8 +374,15 @@ body.simple #nav a{font-size:14px}
 .shop-row .by .av{margin-right:-2px}
 .metoo{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;font-size:12px;padding:2px 8px;white-space:nowrap;flex:none}
 .metoo[aria-pressed="true"]{border-color:var(--red);background:var(--red-soft);color:var(--red);font-weight:700}
-.shop-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
-.shop-quick .chip{flex:none;font-size:14px}
+.shop-quick{display:flex;flex-direction:column;gap:8px}
+.sq-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.sq-tabs .chip{font-size:15px;padding:6px 14px;font-weight:600}
+.sq-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:6px;background:var(--tint);border-radius:14px;padding:8px}
+.sq-pick[hidden]{display:none}
+.sq-item{display:flex;flex-direction:column;align-items:center;gap:2px;border:1.5px solid transparent;background:var(--surface);color:var(--ink);border-radius:12px;padding:6px 2px;font:inherit;cursor:pointer;min-width:0}
+.sq-item .e{font-size:26px;line-height:1.1}
+.sq-item .n{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sq-item.on,.sq-item:active{border-color:var(--red);background:var(--red-soft)}
 </style>
 </head>
 <body>
@@ -457,10 +464,10 @@ body.simple #nav a{font-size:14px}
       </div>
       <div class="card">
         <div class="weather" id="weather"></div>
-        <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>사 주세요! 🛒</h2><a class="more" href="#todo">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
+        <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>저녁메뉴 및 사주세요 🍽️</h2><a class="more" href="#todo">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
         <ul class="list" id="home-shop"></ul>
-        <div class="shop-quick" aria-label="먹고 싶은 것 빠르게 고르기"></div>
-        <form class="add" data-form="shop"><input type="text" id="home-shop-in" placeholder="먹고 싶은 거, 필요한 거 (예: 치킨, 우유)" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+        <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
+        <form class="add" data-form="shop"><input type="text" id="home-shop-in" placeholder="저녁메뉴, 필요한 거 (예: 김치찌개, 우유)" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
       </div>
     </div>
     <div class="grid-people" id="people"></div>
@@ -550,11 +557,11 @@ body.simple #nav a{font-size:14px}
     </div>
     <div class="grid-people" id="todo-cols"></div>
     <div class="card">
-      <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>사 주세요! 🛒</h2><button class="btn ghost" type="button" id="sh-clear">산 것 지우기</button></div>
-      <div class="sub" style="margin:-4px 0 4px">먹고 싶은 메뉴나 필요한 물건을 적으면 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 갖고 싶으면 ‘나도!’를 눌러요.</div>
+      <div class="card-h" style="flex-wrap:wrap;gap:8px"><h2 style="white-space:nowrap"><svg class="i"><use href="#i-cart"/></svg>저녁메뉴 및 사주세요 🍽️</h2><button class="btn ghost" type="button" id="sh-clear" style="white-space:nowrap">산 것 지우기</button></div>
+      <div class="sub" style="margin:-4px 0 4px">먹고 싶은 저녁메뉴나 필요한 물건을 적으면 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 갖고 싶으면 ‘나도!’를 눌러요.</div>
       <ul class="list lined" id="shop-full"></ul>
-      <div class="shop-quick" aria-label="먹고 싶은 것 빠르게 고르기"></div>
-      <form class="add" data-form="shop"><input type="text" id="full-shop-in" placeholder="예: 치킨, 떡볶이, 우유 2개, 색연필" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
+      <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
+      <form class="add" data-form="shop"><input type="text" id="full-shop-in" placeholder="예: 김치찜, 불고기, 우유 2개, 색연필" maxlength="60" required aria-label="살 것"><button class="btn">추가</button></form>
     </div>
   </section>
 
@@ -714,6 +721,6 @@ body.simple #nav a{font-size:14px}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" hidden>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>
