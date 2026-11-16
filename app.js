@@ -800,7 +800,11 @@
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
     const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
-    await db.collection("chores").add({ title, memberId: $("ch-who").value, daily: $("ch-daily").getAttribute("aria-pressed") === "true", done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
+    const memberId = $("ch-who").value, daily = $("ch-daily").getAttribute("aria-pressed") === "true";
+    await db.collection("chores").add({ title, memberId, daily, done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
+    // 매일 하는 일은 아침 8시 알림으로만, 한 번짜리 할 일은 바로 담당자에게 (누구든 = 알림 켠 가족 모두, 조부모 빼고)
+    if (!daily) { const w = member(me), to = member(memberId) ? [memberId] : state.members.filter(m => m.kind !== "grand").map(m => m.id);
+      notify({ to, except: me || "", title: `✅ 할 일 · ${member(memberId) ? member(memberId).name : "누구든"}`, body: `${w ? w.name : "가족"}: ${title}`, url: "./#todo", tag: "chore" }); }
   }));
   $("f-no").addEventListener("submit", guard(async () => {
     const title = $("no-title").value.trim(), memberId = $("no-who").value; if (!title) return;
