@@ -251,18 +251,24 @@
   function renderRepeat() { $("ev-repeat").setAttribute("aria-pressed", String(evRepeat)); $("ev-until-wrap").hidden = !evRepeat; }
   $("ev-repeat").onclick = () => { evRepeat = !evRepeat; renderRepeat(); };
 
-  function renderWhoChips() {
-    const box = $("ev-who"); box.replaceChildren();
-    [...evWho].forEach(id => { if (!member(id)) evWho.delete(id); });
-    const all = el("button","chip t","가족 전체"); all.type = "button"; all.setAttribute("aria-pressed", String(evWho.size===0));
-    all.onclick = () => { evWho.clear(); renderWhoChips(); }; box.append(all);
-    sortedMembers().forEach(m => {
-      const c = el("button","chip"); c.type = "button"; c.setAttribute("aria-pressed", String(evWho.has(m.id)));
-      c.append(avatar(m,true), document.createTextNode(m.name));
-      c.onclick = () => { evWho.has(m.id) ? evWho.delete(m.id) : evWho.add(m.id); renderWhoChips(); };
-      box.append(c);
-    });
+  // 사람 고르기 칩: 여러 명을 고를 수 있고, 아무도 안 고르면 첫 칩(가족 전체 / 누구든)
+  function whoChips(box, set, allLabel) {
+    const draw = () => {
+      box.replaceChildren();
+      [...set].forEach(id => { if (!member(id)) set.delete(id); });
+      const all = el("button","chip t",allLabel); all.type = "button"; all.setAttribute("aria-pressed", String(set.size===0));
+      all.onclick = () => { set.clear(); draw(); }; box.append(all);
+      sortedMembers().forEach(m => {
+        const c = el("button","chip"); c.type = "button"; c.setAttribute("aria-pressed", String(set.has(m.id)));
+        c.append(avatar(m,true), document.createTextNode(m.name));
+        c.onclick = () => { set.has(m.id) ? set.delete(m.id) : set.add(m.id); draw(); };
+        box.append(c);
+      });
+    };
+    draw();
   }
+  const chWho = new Set();
+  function renderWhoChips() { whoChips($("ev-who"), evWho, "가족 전체"); whoChips($("ch-who"), chWho, "누구든"); }
 
   // ---------- weather / side ----------
   function renderWeather() {
@@ -825,7 +831,6 @@
     if (simple !== wasSimple) route();
     $("today-date").textContent = fmtDay(todayStr());
     renderFilter(); renderWhoChips();
-    fillSelect($("ch-who"), sortedMembers(), "누구든");
     fillSelect($("no-who"), kids(), null);
     renderCal(); renderWeather(); renderShopping(); renderPeople(); renderDiary(); renderMsgs(); renderMoney(); renderFamily(); renderBackupNote(); renderStatus(); renderPush(); checkPop();
   }
@@ -861,11 +866,14 @@
   }));
   $("f-ch").addEventListener("submit", guard(async () => {
     const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
-    const memberId = $("ch-who").value, daily = $("ch-daily").getAttribute("aria-pressed") === "true";
-    await db.collection("chores").add({ title, memberId, daily, done: false, doneBy: "", doneAt: 0, createdAt: Date.now() });
+    // 여러 명을 고르면 사람마다 하나씩 따로 만들어서 각자 체크해요. 아무도 안 고르면 '누구든'
+    const ids = sortedMembers().filter(m => chWho.has(m.id)).map(m => m.id), daily = $("ch-daily").getAttribute("aria-pressed") === "true";
+    const now = Date.now();
+    for (const memberId of (ids.length ? ids : [""])) await db.collection("chores").add({ title, memberId, daily, done: false, doneBy: "", doneAt: 0, createdAt: now });
+    if (ids.length > 1) toast(`${ids.map(id => member(id).name).join(", ")}에게 하나씩 추가했어요`);
     // 매일 하는 일은 아침 8시 알림으로만, 한 번짜리 할 일은 바로 담당자에게 (누구든 = 알림 켠 가족 모두, 조부모 빼고)
-    if (!daily) { const w = member(me), to = member(memberId) ? [memberId] : state.members.filter(m => m.kind !== "grand").map(m => m.id);
-      notify({ to, except: me || "", title: `✅ 할 일 · ${member(memberId) ? member(memberId).name : "누구든"}`, body: `${w ? w.name : "가족"}: ${title}`, url: "./#todo", tag: "chore" }); }
+    if (!daily) { const w = member(me), to = ids.length ? ids : state.members.filter(m => m.kind !== "grand").map(m => m.id);
+      notify({ to, except: me || "", title: `✅ 할 일 · ${ids.length ? ids.map(id => member(id).name).join(", ") : "누구든"}`, body: `${w ? w.name : "가족"}: ${title}`, url: "./#todo", tag: "chore" }); }
   }));
   $("f-no").addEventListener("submit", guard(async () => {
     const title = $("no-title").value.trim(), memberId = $("no-who").value; if (!title) return;
