@@ -36,7 +36,7 @@
   const sortedMembers = () => [...state.members].sort((a,b) => (isAdult(a)-isAdult(b)) || ((a.kind==="grand")-(b.kind==="grand")) || ((a.createdAt||0)-(b.createdAt||0)));
   const kids = () => sortedMembers().filter(m => !isAdult(m));
   // 조부모 기기는 간단 화면: 일정 · 수다방 · 용돈 보내기만, 글씨 크게
-  const SIMPLE_VIEWS = ["calendar","allchat","money","family"];
+  const SIMPLE_VIEWS = ["calendar","allchat","dm","money","family"];
   const isSimple = () => { const m = state.members.find(x => x.id === me); return !!m && m.kind === "grand"; };
   const colorVar = m => `var(--m${((m && m.color) || 0) % COLORS})`;
   const avatar = (m, sm) => { const a = el("span","av"+(sm?" sm":""), m ? m.name.slice(0,1) : "전"); if (m) a.style.background = colorVar(m); else a.classList.add("all"); a.title = m ? m.name : "가족 전체"; return a; };
@@ -71,14 +71,16 @@
   // ---------- routing ----------
   const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
   function route() {
-    let v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    const h = location.hash.slice(1);
+    let v = VIEWS.includes(h) ? h : /^dm(-\w+)?$/.test(h) ? "dm" : "home"; // #dm = 1:1 상대 고르기, #dm-<가족id> = 그 가족과 1:1
     if (isSimple() && v === "board") v = "allchat";
     if (isSimple() && !SIMPLE_VIEWS.includes(v)) v = "calendar";
-    const sec = v === "allchat" ? "board" : v; // 온가족방 uses the same chat screen
-    if (sec === "board") { room = v === "allchat" ? "all" : "home"; renderMsgs(); }
+    const sec = v === "allchat" || v === "dm" ? "board" : v; // 온가족방 · 1:1도 같은 수다 화면을 써요
     $$("[data-view]").forEach(s => s.hidden = s.dataset.view !== sec);
+    if (sec === "board") { room = v === "allchat" ? "all" : v === "dm" ? dmRoomWith(h.slice(3)) : "home"; renderMsgs(); }
     if (sec === "board") requestAnimationFrame(chatToEnd); // 숨겨진 상태에선 스크롤이 안 되므로, 화면이 보인 뒤 맨 아래(최근 글)로
-    $$("#nav a, #more-sheet a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+    const navV = v === "dm" ? (isSimple() ? "allchat" : "board") : v;
+    $$("#nav a, #more-sheet a").forEach(a => { if (a.dataset.v === navV) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
     const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
     const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
     window.scrollTo(0,0);
@@ -565,18 +567,33 @@
 
   // ---------- 수다방 (family chat) ----------
   const STICKERS = ["💖","😆","👍","🥹","🎉","😴","🍗","⚾","🐱","🌈"];
-  // 두 개의 방: "home" = 우리 넷, "all" = 할머니·할아버지까지 온 가족. 조부모 기기는 "all" 만 봐요.
+  // 방: "home" = 우리 넷, "all" = 할머니·할아버지까지 온 가족 (조부모 기기는 "all"과 1:1만 봐요),
+  // "dm:<id>:<id>" = 두 사람만 보는 1:1 대화 (id는 정렬해서 누가 열어도 같은 방), "dm" = 1:1 상대 고르는 화면
   let room = "home";
-  const curRoom = () => isSimple() ? "all" : room;
-  const roomOf = mg => mg.room === "all" ? "all" : "home";
+  const isDm = r => typeof r === "string" && r.startsWith("dm:");
+  const dmIds = r => r.slice(3).split(":");
+  const dmPeer = r => dmIds(r).find(x => x !== me) || "";
+  const dmMine = r => isDm(r) && !!me && dmIds(r).includes(me);
+  const dmRoomWith = id => me && member(me) && id && id !== me && member(id) ? "dm:" + [me, id].sort().join(":") : "dm";
+  const curRoom = () => isSimple() && room !== "dm" && !isDm(room) ? "all" : room;
+  const roomOf = mg => mg.room === "all" ? "all" : isDm(mg.room) ? mg.room : "home";
+  // 1:1 안 읽은 글: 이 기기에서 마지막으로 그 방을 본 시각 (기기마다 따로)
+  let dmSeen = {};
+  try { dmSeen = JSON.parse(localStorage.getItem("fam-dmseen") || "{}") || {}; } catch (e) {}
+  const dmUnread = r => state.messages.filter(m => m.room === r && m.by !== me && m.createdAt > (dmSeen[r] || 0)).length;
+  const myDmRooms = () => [...new Set(state.messages.map(m => m.room).filter(dmMine))];
   const roomFor = node => node && node.closest('[data-view="board"]') ? curRoom() : "home";
   function sendMsg(text, sticker, photo, rm, nPhotos = 1) { // 여러 장 보낼 때: 0 = 알림 생략, 2 이상 = "사진 N장" 알림 한 번
     if (!ready()) return Promise.resolve();
-    const r = rm === "all" ? "all" : "home";
+    if (rm === "dm") return Promise.resolve(); // 아직 1:1 상대를 고르지 않음
+    if (isDm(rm) && !dmMine(rm)) { toast("가족 메뉴에서 ‘이 기기는 나’를 먼저 골라 주세요."); return Promise.resolve(); }
+    const r = rm === "all" || isDm(rm) ? rm : "home";
     return db.collection("messages").add({ text, sticker: !!sticker, photo: photo || "", room: r, by: me || "", hearts: [], createdAt: Date.now() }).then(async () => {
       if (!nPhotos) return;
-      const w = member(me), to = r === "all" ? null : state.members.filter(m => m.kind !== "grand").map(m => m.id);
-      notify({ to, except: me || "", title: `${r === "all" ? "💞 온 가족" : "🏠 우리집"} · ${w ? w.name : "가족"}`, body: photo ? `📷 사진${nPhotos > 1 ? " " + nPhotos + "장" : ""}을 보냈어요` + (text ? " · " + text : "") : text, url: r === "all" ? "./#allchat" : "./#board", tag: "chat-" + r });
+      const w = member(me), body = photo ? `📷 사진${nPhotos > 1 ? " " + nPhotos + "장" : ""}을 보냈어요` + (text ? " · " + text : "") : text;
+      if (isDm(r)) notify({ to: [dmPeer(r)], except: me || "", title: `💌 ${w ? w.name : "가족"} (1:1)`, body, url: "./#dm-" + me, tag: "dm-" + me });
+      else { const to = r === "all" ? null : state.members.filter(m => m.kind !== "grand").map(m => m.id);
+        notify({ to, except: me || "", title: `${r === "all" ? "💞 온 가족" : "🏠 우리집"} · ${w ? w.name : "가족"}`, body, url: r === "all" ? "./#allchat" : "./#board", tag: "chat-" + r }); }
       const inRoom = state.messages.filter(m => roomOf(m) === r);
       if (inRoom.length >= 150) {
         const old = [...inRoom].sort((a,b) => a.createdAt - b.createdAt).slice(0, inRoom.length - 149);
@@ -591,12 +608,27 @@
     db.doc("messages/"+mg.id).update({ hearts: [...h] }).catch(fail);
   }
   function renderMsgs() {
+    // 1:1 방은 가족 목록이 늦게 불러와지거나 '이 기기는 나'가 바뀌면 주소(#dm-<id>)로 다시 정해요
+    const hm = location.hash.match(/^#dm-(\w+)$/);
+    if (hm && (room === "dm" || isDm(room))) room = dmRoomWith(hm[1]); else if (isDm(room) && !dmMine(room)) room = "dm";
     const all = [...state.messages].sort((a,b) => a.createdAt - b.createdAt), cr = curRoom();
-    const list = all.filter(m => roomOf(m) === cr), homeList = all.filter(m => roomOf(m) === "home");
+    const dm = isDm(cr), picking = cr === "dm", peer = dm ? member(dmPeer(cr)) : null;
+    const list = picking || (dm && !dmMine(cr)) ? [] : all.filter(m => roomOf(m) === cr), homeList = all.filter(m => roomOf(m) === "home");
+    if (dm && list.length && !$("board-msgs").closest("[hidden]") && !document.hidden) { // 보고 있는 1:1 방은 읽음으로
+      const last = list[list.length - 1].createdAt;
+      if ((dmSeen[cr] || 0) < last) { dmSeen[cr] = last; store("fam-dmseen", JSON.stringify(dmSeen)); }
+    }
     $("msg-count").textContent = list.length ? `수다 ${list.length}개` : "";
-    $("board-title").textContent = cr === "all" ? "온 가족 수다방 💞" : "우리 가족 수다방 💬";
-    $$("#room-tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.room === cr)));
-    $("board-msg-in").placeholder = cr === "all" ? "할머니·할아버지께 한마디 💞" : "오늘 학교에서 무슨 일 있었어?";
+    $("board-title").textContent = cr === "all" ? "온 가족 수다방 💞" : dm ? `💌 ${peer ? peer.name : "가족"} · 1:1 대화` : picking ? "💌 1:1 대화" : "우리 가족 수다방 💬";
+    $$("#room-tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.room === (dm || picking ? "dm" : cr))));
+    const unread = myDmRooms().reduce((n, r) => n + dmUnread(r), 0), ub = $("dm-unread");
+    ub.hidden = !unread; ub.textContent = unread > 99 ? "99+" : String(unread);
+    $("board-msg-in").placeholder = cr === "all" ? "할머니·할아버지께 한마디 💞" : dm ? `${peer ? peer.name : "가족"}에게만 보내는 메시지 🤫` : "오늘 학교에서 무슨 일 있었어?";
+    $("board-sub").textContent = dm ? `${peer ? peer.name : "상대"}와 나, 둘만 보는 대화예요. 다른 가족 화면엔 나오지 않아요. ＋로 사진(7일 보관), 😊로 스티커를 보낼 수 있어요.`
+      : "말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.";
+    { const bc = $("board-msgs").closest(".card");
+      [$("board-msgs"), $("board-sub"), bc.querySelector(".sticker-row"), bc.querySelector("form.chat-input")].forEach(x => x.hidden = picking);
+      $("dm-pick").hidden = !picking; if (picking) renderDmPick(); }
     [["home-msgs", homeList.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
       const box = $(id); box.replaceChildren();
       let lastDay = null, lastBy = null;
@@ -635,10 +667,32 @@
         col.append(line); row.append(col); box.append(row);
         lastBy = mg.by;
       });
-      if (!l.length) box.append(el("div","empty chat-empty","첫 수다를 시작해 보세요! 😊를 누르면 스티커도 있어요 💬"));
+      if (!l.length) box.append(el("div","empty chat-empty", id === "board-msgs" && dm ? `${peer ? peer.name : "가족"}에게 첫 메시지를 보내 보세요 💌 둘만 볼 수 있어요.` : "첫 수다를 시작해 보세요! 😊를 누르면 스티커도 있어요 💬"));
       box.scrollTop = box.scrollHeight;
     });
     requestAnimationFrame(chatToEnd); // 글이 새로 오거나 위쪽 안내가 사라져도 최근 글이 보이게
+  }
+  // 1:1 상대 고르기: 가족 한 명씩, 최근 대화가 있는 사람부터
+  function renderDmPick() {
+    const box = $("dm-pick"); box.replaceChildren();
+    if (!member(me)) { box.append(el("div","empty","가족 메뉴에서 ‘이 기기는 나’를 먼저 골라 주세요. 그래야 1:1 대화를 할 수 있어요.")); return; }
+    const rows = sortedMembers().filter(m => m.id !== me).map(m => {
+      const r = dmRoomWith(m.id), msgs = state.messages.filter(x => x.room === r);
+      const last = msgs.reduce((a, b) => !a || b.createdAt > a.createdAt ? b : a, null);
+      return { m, r, last };
+    }).sort((a, b) => (b.last ? b.last.createdAt : 0) - (a.last ? a.last.createdAt : 0));
+    if (!rows.length) { box.append(el("div","empty","1:1로 이야기할 다른 가족이 아직 없어요. 가족 메뉴에서 가족을 등록해 주세요.")); return; }
+    box.append(el("div","sub","누구와 둘이서만 이야기할까요? 둘만 보는 대화예요 🤫"));
+    rows.forEach(({ m, r, last }) => {
+      const b = el("button","dm-who"); b.type = "button"; b.setAttribute("aria-label", `${m.name}와 1:1 대화`);
+      const mid = el("span","dm-mid"); mid.append(el("span","dm-name", m.name));
+      mid.append(el("span","dm-last", !last ? "아직 대화가 없어요" : (last.by === me ? "나: " : "") + (last.photo ? "📷 사진" : last.sticker ? last.text + " 스티커" : last.text)));
+      const end = el("span","dm-end"); if (last) end.append(el("span", "", ago(last.createdAt)));
+      const n = dmUnread(r); if (n) end.append(el("span","dm-unread", n > 99 ? "99+" : String(n)));
+      b.append(avatar(m), mid, end);
+      b.onclick = () => { location.hash = "#dm-" + m.id; };
+      box.append(b);
+    });
   }
   function chatToEnd() {
     const b = $("board-msgs"); if (!b || b.closest("[hidden]")) return;
@@ -711,7 +765,7 @@
   };
   $("photo-view").onclick = () => { $("photo-view").hidden = true; };
   $$(".sticker-row").forEach(row => STICKERS.forEach(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기"); b.onclick = () => sendMsg(s, true, "", roomFor(row)); row.append(b); }));
-  $$("#room-tabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.room === "all" ? "#allchat" : "#board"; });
+  $$("#room-tabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.room === "all" ? "#allchat" : b.dataset.room === "dm" ? "#dm" : "#board"; });
 
   // ---------- family ----------
   function renderFamily() {
