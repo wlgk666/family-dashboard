@@ -283,11 +283,14 @@
     top.append(tl, el("span", null, wx ? "📍 " + wx.place : ""));
     w.append(top);
     const wIcon = (n, size) => icon("w-" + (["sun","partly","cloud","rain","snow","fog","thunder"].includes(n) ? n : "cloud"), size);
-    const cw = $("cal-wx");
+    const cw = $("top-wx");
     if (cw) {
       cw.replaceChildren();
-      if (wx && wx.now) { cw.append(wIcon(wx.now.icon, 16), document.createTextNode(`${wx.now.temp}°`)); cw.setAttribute("aria-label", `지금 날씨 ${wx.now.sky} ${wx.now.temp}도, 자세히 보기`); cw.title = `${wx.now.sky} · 최고 ${wx.today ? wx.today.max : "-"}° / 최저 ${wx.today ? wx.today.min : "-"}°`; cw.hidden = false; }
-      else cw.hidden = true;
+      if (wx && wx.now) {
+        cw.append(wIcon(wx.now.icon, 22), el("b", null, `${wx.now.temp}°`));
+        if (wx.today) cw.append(el("small", null, `${wx.today.max}° / ${wx.today.min}°`));
+        cw.setAttribute("aria-label", `지금 날씨 ${wx.now.sky} ${wx.now.temp}도, 자세히 보기`); cw.title = wx.now.sky; cw.hidden = false;
+      } else cw.hidden = true;
     }
     if (wx && wx.now) {
       const nowRow = el("div","w-now");
