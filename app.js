@@ -417,7 +417,7 @@
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!c.done; cb.setAttribute("aria-label", c.title);
     cb.onchange = () => ready() && db.doc("chores/"+c.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
     const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title, editedMark(c)); g.append(t);
-    if (c.done) { const by = member(c.doneBy); g.append(el("div","meta",`${by ? by.name : "누군가"} 완료 · ${ago(c.doneAt)}${c.daily ? "" : " · 3일 뒤 자동 삭제"}`)); }
+    if (c.done) { const by = member(c.doneBy); g.append(el("div","meta",`${by ? by.name : "누군가"} 완료 · ${ago(c.doneAt)}${c.daily ? "" : " · 일주일 뒤 자동 삭제"}`)); }
     li.append(cb, g, editBtn(c.title, () => editField("chores", c, "title", "할 일 고치기", { max: 100, oneLine: true })), xBtn(c.title, del("chores", c.id)));
     return li;
   }
@@ -1228,15 +1228,15 @@
   setInterval(() => { if (todayStr() !== dayNow) { dayNow = todayStr(); if (db) { state.chores = pull(db, "chores"); renderAll(); } } }, 60000);
   setInterval(() => { if (db && !document.hidden) cleanupChores(); }, 3600000);
 
-  // 한 번만 하는 할 일은 완료 체크하고 3일이 지나면 자동으로 지워요 (매일 할 일은 그대로)
-  const CHORE_KEEP_DAYS = 3;
+  // 한 번만 하는 할 일은 완료 체크하고 7일이 지나면 자동으로 지워요 (매일 할 일은 그대로)
+  const CHORE_KEEP_DAYS = 7;
   async function cleanupChores() {
     if (!db) return;
     const now = Date.now();
     for (const c of db.list("chores")) {
       if (c.daily || !c.done) continue;
       try {
-        if (!c.doneAt) await db.doc("chores/"+c.id).update({ doneAt: now }); // 완료 시각이 없던 예전 항목: 지금부터 3일
+        if (!c.doneAt) await db.doc("chores/"+c.id).update({ doneAt: now }); // 완료 시각이 없던 예전 항목: 지금부터 7일
         else if (now - c.doneAt >= CHORE_KEEP_DAYS * 864e5) await db.doc("chores/"+c.id).delete();
       } catch (e) { console.error(e); break; }
     }
