@@ -285,8 +285,13 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .heart{border:0;background:transparent;color:var(--muted);font-size:12px;padding:0 2px;line-height:1.4}
 .heart.on{color:var(--pink);font-weight:700}
 .chat-x{width:22px;height:22px;font-size:14px}
-.sticker-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
-.stk{border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:22px;width:44px;height:40px;flex:none;line-height:1}
+.sticker-row{display:flex;flex-direction:column;gap:4px;padding-bottom:2px}
+.stk-cats{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.stk-cats::-webkit-scrollbar{display:none}
+.stk-cat{flex:1 1 0;min-width:0;border:0;background:transparent;border-radius:10px;font-size:18px;padding:0;height:32px;line-height:1;opacity:.55;filter:grayscale(.6)}
+.stk-cat[aria-selected="true"]{background:var(--tint);opacity:1;filter:none}
+.stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:88px;overflow-y:auto;overscroll-behavior:contain}
+.stk{border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:22px;width:100%;height:40px;line-height:1}
 .stk:hover{transform:translateY(-2px);border-color:var(--pink)}
 .chat-input input{border-radius:999px!important}
 /* 수다 입력칸: 긴 글은 줄바꿈되며 최대 5줄까지 늘어나요 */
@@ -786,6 +791,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=48"></script>
+<script src="app.js?v=49"></script>
 </body>
 </html>
