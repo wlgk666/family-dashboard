@@ -86,7 +86,11 @@
     const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
     const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
     window.scrollTo(0,0);
+    if (pendingJump) { const id = pendingJump; pendingJump = ""; requestAnimationFrame(() => { const t = document.getElementById(id); if (t && t.offsetParent) t.scrollIntoView({ block: "start" }); }); }
   }
+  // "전체"처럼 다른 화면의 특정 카드로 가는 링크: data-jump="카드 id"
+  let pendingJump = "";
+  document.addEventListener("click", e => { const a = e.target.closest("a[data-jump]"); if (a) pendingJump = a.dataset.jump; }, true);
   addEventListener("hashchange", route);
   // 홈의 "할 일 추가": 할 일 화면으로 가서 바로 입력칸에 글을 쓸 수 있게 (아이폰 키보드가 뜨도록 누른 순간에 포커스)
   const jumpTo = (hash, inputId) => e => { e.preventDefault(); location.hash = hash; route(); const t = $(inputId()); if (t) { t.focus(); t.scrollIntoView({ block: "center" }); } };
