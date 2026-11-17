@@ -282,9 +282,10 @@
     if (cw) {
       cw.replaceChildren();
       if (wx && wx.now) {
-        cw.append(el("span", "lab", "오늘 날씨"), wIcon(wx.now.icon, 22), el("b", null, `${wx.now.temp}°`));
-        if (wx.today) cw.append(el("small", null, `${wx.today.max}° / ${wx.today.min}°`));
-        cw.setAttribute("aria-label", `오늘 날씨 ${wx.now.sky} ${wx.now.temp}도`); cw.title = wx.now.sky; cw.hidden = false;
+        const val = (big, sm) => { const v = el("span"); v.append(el("b", null, big), document.createTextNode(" "), el("small", null, sm)); return v; };
+        cw.append(el("span", "lab", "오늘 날씨"), wIcon(wx.now.icon, 16), val(`${wx.now.temp}°`, wx.today ? `${wx.today.max}°/${wx.today.min}°` : ""));
+        if (wx.tomorrow) cw.append(el("span", "lab", "내일 날씨"), wIcon(wx.tomorrow.icon, 16), val(`${wx.tomorrow.max}°`, `/ ${wx.tomorrow.min}°`));
+        cw.setAttribute("aria-label", `오늘 날씨 ${wx.now.sky} ${wx.now.temp}도` + (wx.tomorrow ? `, 내일 ${wx.tomorrow.sky} 최고 ${wx.tomorrow.max}도 최저 ${wx.tomorrow.min}도` : "")); cw.title = `오늘 ${wx.now.sky}` + (wx.tomorrow ? ` · 내일 ${wx.tomorrow.sky}` : ""); cw.hidden = false;
       } else cw.hidden = true;
     }
     const w = $("weather"); if (!w) return; // 자세한 날씨 카드는 홈에서 뺐어요 (상단 "오늘 날씨"만 표시)
