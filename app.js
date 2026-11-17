@@ -72,9 +72,13 @@
 
   // ---------- routing ----------
   const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
+  // "전체"처럼 다른 화면의 특정 카드로 가는 링크: data-jump="카드 id"
+  let pendingJump = "";
   function route() {
     const h = location.hash.slice(1);
-    let v = VIEWS.includes(h) ? h : /^dm(-\w+)?$/.test(h) ? "dm" : "home"; // #dm = 1:1 상대 고르기, #dm-<가족id> = 그 가족과 1:1
+    // #shop = 저녁메뉴 및 사주세요 목록 (할 일 화면 아래쪽). 알림을 누르거나 홈의 "전체"를 누르면 그 목록으로 바로 내려가요
+    if (h === "shop") pendingJump = "shop-card";
+    let v = h === "shop" ? "todo" : VIEWS.includes(h) ? h : /^dm(-\w+)?$/.test(h) ? "dm" : "home"; // #dm = 1:1 상대 고르기, #dm-<가족id> = 그 가족과 1:1
     if (isSimple() && v === "board") v = "allchat";
     if (isSimple() && !SIMPLE_VIEWS.includes(v)) v = "calendar";
     const sec = v === "allchat" || v === "dm" ? "board" : v; // 온가족방 · 1:1도 같은 수다 화면을 써요
@@ -86,7 +90,9 @@
     const mb = document.getElementById("more-btn"); if (mb) mb.classList.toggle("on", ["allchat","diary","school","money","family"].includes(v));
     const sh = document.getElementById("more-sheet"); if (sh) { sh.hidden = true; mb && mb.setAttribute("aria-expanded","false"); }
     window.scrollTo(0,0);
+    if (pendingJump) { const id = pendingJump; pendingJump = ""; requestAnimationFrame(() => { const t = document.getElementById(id); if (t && t.offsetParent) t.scrollIntoView({ block: "start" }); }); }
   }
+  document.addEventListener("click", e => { const a = e.target.closest("a[data-jump]"); if (a) { pendingJump = a.dataset.jump; if (location.hash === a.getAttribute("href")) { e.preventDefault(); route(); } } }, true);
   addEventListener("hashchange", route);
   // 홈의 "할 일 추가": 할 일 화면으로 가서 바로 입력칸에 글을 쓸 수 있게 (아이폰 키보드가 뜨도록 누른 순간에 포커스)
   const jumpTo = (hash, inputId) => e => { e.preventDefault(); location.hash = hash; route(); const t = $(inputId()); if (t) { t.focus(); t.scrollIntoView({ block: "center" }); } };
@@ -907,7 +913,7 @@
     await db.collection("shopping").add({ item, done: false, by: me || "", metoo: [], createdAt: Date.now() });
     toast(`${shopEmo(item)} ${item} ${askWord(item, false)} 부탁했어요`);
     { const w = member(me), adults = state.members.filter(m => m.kind === "parent").map(m => m.id);
-      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} ${askWord(item, false)}`, url: "./#todo", tag: "shop" }); }
+      notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} ${askWord(item, false)}`, url: "./#shop", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
     ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); [60, 300].forEach(ms => setTimeout(() => { if (!inp.value.trim()) inp.value = ""; fitMsgBox(inp); }, ms)); sendMsg(text, false, "", roomFor(f)); // 아이폰 한글 입력이 늦게 남기는 글자·줄바꿈까지 지우고 입력칸을 한 줄로
@@ -1229,7 +1235,7 @@
     const n = await st.loadAll();
     NAMES.forEach(nm => state[nm] = pull(st, nm));
     if (n === 0 && !allowNew) return "empty";
-    db = st; famKey = key; store("fam-key", key); renderAll(); syncPush();
+    db = st; famKey = key; store("fam-key", key); renderAll(); if (location.hash === "#shop") route(); // 알림으로 열었을 때: 목록이 다 그려진 뒤 다시 그 위치로 syncPush();
     st.cleanupPhotos(PHOTO_DAYS * 864e5).catch(() => {});
     naverRefresh(false);
     return "ok";
