@@ -276,22 +276,23 @@
 
   // ---------- weather / side ----------
   function renderWeather() {
-    const w = $("weather"); w.replaceChildren();
     const wx = (state.weather.find(d => d.id === "current")) || null;
-    const top = el("div","small"); top.style.cssText = "display:flex;align-items:center;gap:6px;justify-content:space-between";
-    const tl = el("span"); tl.style.cssText = "display:flex;align-items:center;gap:6px"; tl.append(icon("i-cloud",16), document.createTextNode("오늘 · 내일 날씨"));
-    top.append(tl, el("span", null, wx ? "📍 " + wx.place : ""));
-    w.append(top);
     const wIcon = (n, size) => icon("w-" + (["sun","partly","cloud","rain","snow","fog","thunder"].includes(n) ? n : "cloud"), size);
     const cw = $("top-wx");
     if (cw) {
       cw.replaceChildren();
       if (wx && wx.now) {
-        cw.append(wIcon(wx.now.icon, 22), el("b", null, `${wx.now.temp}°`));
+        cw.append(el("span", "lab", "오늘 날씨"), wIcon(wx.now.icon, 22), el("b", null, `${wx.now.temp}°`));
         if (wx.today) cw.append(el("small", null, `${wx.today.max}° / ${wx.today.min}°`));
-        cw.setAttribute("aria-label", `지금 날씨 ${wx.now.sky} ${wx.now.temp}도, 자세히 보기`); cw.title = wx.now.sky; cw.hidden = false;
+        cw.setAttribute("aria-label", `오늘 날씨 ${wx.now.sky} ${wx.now.temp}도`); cw.title = wx.now.sky; cw.hidden = false;
       } else cw.hidden = true;
     }
+    const w = $("weather"); if (!w) return; // 자세한 날씨 카드는 홈에서 뺐어요 (상단 "오늘 날씨"만 표시)
+    w.replaceChildren();
+    const top = el("div","small"); top.style.cssText = "display:flex;align-items:center;gap:6px;justify-content:space-between";
+    const tl = el("span"); tl.style.cssText = "display:flex;align-items:center;gap:6px"; tl.append(icon("i-cloud",16), document.createTextNode("오늘 · 내일 날씨"));
+    top.append(tl, el("span", null, wx ? "📍 " + wx.place : ""));
+    w.append(top);
     if (wx && wx.now) {
       const nowRow = el("div","w-now");
       nowRow.append(wIcon(wx.now.icon), el("div","big-t", `${wx.now.temp}°`));

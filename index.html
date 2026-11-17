@@ -87,6 +87,8 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .top-wx svg.i{width:22px;height:22px}
 .top-wx b{font-size:17px}
 .top-wx small{font-size:12px;color:var(--muted)}
+.top-wx .lab{font-size:13px;font-weight:600;color:var(--muted)}
+@media (max-width:360px){.top-wx small{display:none}}
 .top-wx[hidden]{display:none}
 
 .notice{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted)}
@@ -496,7 +498,7 @@ body.simple .card > .sticker-row{display:flex}
     <div class="grow"></div>
     <div class="top-row">
       <label class="filter"><svg class="i" style="width:18px;height:18px"><use href="#i-people"/></svg><select id="filter" aria-label="누구 보기"></select></label>
-      <a class="top-wx" id="top-wx" href="#home" data-jump="weather" hidden></a>
+      <div class="top-wx" id="top-wx" role="group" hidden></div>
     </div>
   </header>
 
@@ -534,7 +536,6 @@ body.simple .card > .sticker-row{display:flex}
         <ul class="list" id="home-shop"></ul>
         <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
         <form class="add grow-input" data-form="shop"><textarea id="home-shop-in" rows="1" placeholder="저녁메뉴, 필요한 거 (예: 김치찌개, 우유)" maxlength="60" required aria-label="살 것" enterkeyhint="done"></textarea><button class="btn">추가</button></form>
-        <div class="weather" id="weather"></div>
       </div>
     </div>
     <div class="grid-people" id="people"></div>
@@ -801,6 +802,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>
