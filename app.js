@@ -578,7 +578,19 @@
   }
 
   // ---------- 수다방 (family chat) ----------
-  const STICKERS = ["💖","😆","👍","🥹","🎉","😴","🍗","⚾","🐱","🌈"];
+  // 스티커(큰 이모지): 종류별 탭 + 🕘 최근 쓴 것 (기기마다 기억)
+  const STK_CATS = [
+    ["😊","표정","😆 😂 🤣 😊 🥰 😍 😘 😋 😜 🤪 😎 🤩 🥳 😇 🙂 😉 🤗 🤭 🤔 😮 😲 😳 🥹 😢 😭 😤 😡 🤯 😱 😴 🥱 🤒 🤧 😷 🫠 🙄"],
+    ["💖","마음","💖 ❤️ 🧡 💛 💚 💙 💜 🤍 🩷 💕 💞 💗 💘 💝 💌 😻 🫶 💯 ✨ 🌟 💋 🥺"],
+    ["👍","손","👍 👎 👏 🙌 🙏 👌 ✌️ 🤞 🤟 👋 💪 🫡 🤝 ☝️ 🙆 🙅 🙋 🤦 🤷 🙇"],
+    ["🎉","축하","🎉 🎊 🎂 🎁 🎈 🏆 🥇 🎖️ 👑 💐 🌹 🍀 🎵 🎶 📸 🥂"],
+    ["🍗","음식","🍗 🍕 🍔 🍟 🌭 🍜 🍝 🍣 🍙 🍚 🍛 🍖 🥩 🌮 🥟 🍩 🍪 🍰 🧁 🍦 🍫 🍬 🍭 🍓 🍉 🍎 🍌 🍇 🥛 ☕ 🧃 🍺"],
+    ["⚾","놀이","⚾ 🏀 ⚽ 🏸 🏓 🎮 🎨 🎤 🎧 📚 ✏️ 🎒 🏫 🚗 🚌 ✈️ 🏖️ ⛺ 🎡 🎢"],
+    ["🐱","동물","🐱 🐶 🐰 🐻 🐼 🐨 🐯 🦁 🐷 🐸 🐵 🐥 🐧 🦄 🐳 🐬 🦋 🐞 🐢 🦖"],
+    ["🌈","날씨·집","🌈 ☀️ 🌤️ ⛅ 🌧️ ⛈️ ❄️ ☃️ 🌙 ⭐ 🌸 🌻 🍁 🔥 💧 ⚡ 🏠 🛏️ 🛁 ⏰"],
+  ].map(([icon, name, list]) => [icon, name, list.split(" ")]);
+  let stkRecent = [];
+  try { stkRecent = JSON.parse(localStorage.getItem("fam-stk-recent") || "[]") || []; } catch (e) {}
   // 방: "home" = 우리 넷, "all" = 할머니·할아버지까지 온 가족 (조부모 기기는 "all"과 1:1만 봐요),
   // "dm:<id>:<id>" = 두 사람만 보는 1:1 대화 (id는 정렬해서 누가 열어도 같은 방), "dm" = 1:1 상대 고르는 화면
   let room = "home";
@@ -776,7 +788,24 @@
     btns.forEach(b => b.disabled = false);
   };
   $("photo-view").onclick = () => { $("photo-view").hidden = true; };
-  $$(".sticker-row").forEach(row => STICKERS.forEach(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기"); b.onclick = () => sendMsg(s, true, "", roomFor(row)); row.append(b); }));
+  $$(".sticker-row").forEach(row => {
+    const cats = el("div","stk-cats"), grid = el("div","stk-grid"); cats.setAttribute("role","tablist");
+    let cur = stkRecent.length ? -1 : 0;
+    const show = () => {
+      const list = cur < 0 ? stkRecent : STK_CATS[cur][2];
+      grid.replaceChildren(...list.map(s => { const b = el("button","stk", s); b.type = "button"; b.setAttribute("aria-label", s + " 스티커 보내기");
+        b.onclick = () => { sendMsg(s, true, "", roomFor(row)); stkRecent = [s, ...stkRecent.filter(x => x !== s)].slice(0, 16); store("fam-stk-recent", JSON.stringify(stkRecent)); }; return b; }));
+      grid.scrollTop = 0;
+      [...cats.children].forEach(c => c.setAttribute("aria-selected", String(+c.dataset.i === cur)));
+    };
+    [["🕘","최근"], ...STK_CATS].forEach(([icon, name], j) => {
+      const i = j - 1, c = el("button","stk-cat", icon); c.type = "button"; c.dataset.i = i; c.title = name; c.setAttribute("role","tab"); c.setAttribute("aria-label", name);
+      c.addEventListener("pointerdown", e => { if (document.activeElement && document.activeElement.tagName === "TEXTAREA") e.preventDefault(); }); // 자판은 그대로
+      c.onclick = () => { if (i < 0 && !stkRecent.length) return toast("아직 보낸 스티커가 없어요"); cur = i; show(); };
+      cats.append(c);
+    });
+    row.append(cats, grid); show();
+  });
   $$("#room-tabs button").forEach(b => b.onclick = () => { location.hash = b.dataset.room === "all" ? "#allchat" : b.dataset.room === "dm" ? "#dm" : "#board"; });
 
   // ---------- family ----------
