@@ -81,6 +81,13 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .top .grow{flex:1}
 .filter{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 6px 4px 12px}
 .filter select{border:0;background:transparent;padding:4px;font-weight:600}
+.top-row{display:flex;align-items:center;gap:10px}
+@media (max-width:760px){.top-row{flex-basis:100%;justify-content:space-between}}
+.top-wx{align-self:stretch;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 10px;color:var(--ink);text-decoration:none;font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1}
+.top-wx svg.i{width:22px;height:22px}
+.top-wx b{font-size:17px}
+.top-wx small{font-size:12px;color:var(--muted)}
+.top-wx[hidden]{display:none}
 
 .notice{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted)}
 .notice b{color:var(--ink)}
@@ -104,12 +111,6 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 @media (max-width:820px){.cal-wrap{grid-template-columns:minmax(0,1fr)}}
 .month-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .month-h strong{font-size:18px;font-variant-numeric:tabular-nums}
-.month-h{position:relative}
-.cal-wx{position:absolute;right:36px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:3px;padding:3px 7px;border-radius:999px;background:var(--tint);color:var(--ink);font-size:13px;font-weight:700;text-decoration:none;font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1}
-.cal-wx svg.i{width:16px;height:16px}
-.cal-wx[hidden]{display:none}
-@media (max-width:400px){.cal-wx{right:32px;padding:3px 5px;gap:2px;font-size:12px}.cal-wx svg.i{width:14px;height:14px}}
-@media (max-width:350px){.cal-wx{background:none;padding:0}.cal-wx svg.i{display:none}}
 .icon-btn{border:0;background:transparent;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
 .icon-btn:hover{background:var(--tint);color:var(--ink)}
 .mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px;text-align:center}
@@ -493,7 +494,10 @@ body.simple .card > .sticker-row{display:flex}
   <header class="top">
     <div class="brand"><h1><span class="kicker">⚾ 우리집 더그아웃</span>오니<em>가족</em><span class="heart" aria-hidden="true">🩷</span></h1><span class="date" id="today-date"></span></div>
     <div class="grow"></div>
-    <label class="filter"><svg class="i" style="width:18px;height:18px"><use href="#i-people"/></svg><select id="filter" aria-label="누구 보기"></select></label>
+    <div class="top-row">
+      <label class="filter"><svg class="i" style="width:18px;height:18px"><use href="#i-people"/></svg><select id="filter" aria-label="누구 보기"></select></label>
+      <a class="top-wx" id="top-wx" href="#home" data-jump="weather" hidden></a>
+    </div>
   </header>
 
   <div class="notice" id="status">가족 보드를 불러오는 중이에요…</div>
@@ -507,7 +511,6 @@ body.simple .card > .sticker-row{display:flex}
             <div class="month-h">
               <button class="icon-btn" type="button" data-mnav="-1" aria-label="이전 달"><svg class="i"><use href="#i-left"/></svg></button>
               <strong class="mtitle"></strong>
-              <a class="cal-wx" id="cal-wx" href="#home" data-jump="weather" hidden></a>
               <button class="icon-btn" type="button" data-mnav="1" aria-label="다음 달"><svg class="i"><use href="#i-right"/></svg></button>
             </div>
             <div class="mgrid" id="mini-month"></div>
@@ -798,6 +801,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=50"></script>
+<script src="app.js?v=51"></script>
 </body>
 </html>
