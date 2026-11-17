@@ -634,7 +634,7 @@
     $("board-title").textContent = cr === "all" ? "온 가족 수다방 💞" : dm ? `💌 ${peer ? peer.name : "가족"} · 1:1 대화` : picking ? "💌 1:1 대화" : "우리 가족 수다방 💬";
     $$("#room-tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.room === (dm || picking ? "dm" : cr))));
     const unread = myDmRooms().reduce((n, r) => n + dmUnread(r), 0), ub = $("dm-unread");
-    ub.hidden = !unread; ub.textContent = unread > 99 ? "99+" : String(unread);
+    [ub, $("home-dm-unread")].forEach(x => { if (x) { x.hidden = !unread; x.textContent = unread > 99 ? "99+" : String(unread); } });
     $("board-msg-in").placeholder = cr === "all" ? "할머니·할아버지께 한마디 💞" : dm ? `${peer ? peer.name : "가족"}에게만 보내는 메시지 🤫` : "오늘 학교에서 무슨 일 있었어?";
     $("board-sub").textContent = dm ? `${peer ? peer.name : "상대"}와 나, 둘만 보는 대화예요. 다른 가족 화면엔 나오지 않아요. ＋로 사진(7일 보관), 😊로 스티커를 보낼 수 있어요.`
       : "말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.";
