@@ -83,7 +83,7 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 .filter select{border:0;background:transparent;padding:4px;font-weight:600}
 .top-row{display:flex;align-items:center;gap:10px}
 @media (max-width:760px){.top-row{flex-basis:100%;justify-content:space-between}}
-.top-wx{align-self:stretch;display:grid;grid-template-columns:auto auto auto;align-content:center;align-items:center;gap:2px 6px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:2px 14px 2px 12px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.15}
+.top-wx{text-decoration:none;align-self:stretch;display:grid;grid-template-columns:auto auto auto;align-content:center;align-items:center;gap:2px 6px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:2px 14px 2px 12px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.15}
 .top-wx svg.i{width:16px;height:16px}
 .top-wx b{font-size:14px}
 .top-wx small{font-size:12px;color:var(--muted);font-weight:500}
@@ -499,7 +499,7 @@ body.simple .card > .sticker-row{display:flex}
     <div class="grow"></div>
     <div class="top-row">
       <label class="filter"><svg class="i" style="width:18px;height:18px"><use href="#i-people"/></svg><select id="filter" aria-label="누구 보기"></select></label>
-      <div class="top-wx" id="top-wx" role="group" hidden></div>
+      <a class="top-wx" id="top-wx" href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener" hidden></a>
     </div>
   </header>
 
@@ -803,6 +803,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=53"></script>
+<script src="app.js?v=54"></script>
 </body>
 </html>
