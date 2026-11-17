@@ -465,6 +465,7 @@ body.simple .card > .sticker-row{display:flex}
     <a href="#allchat" data-v="allchat" class="more-item"><svg class="i"><use href="#i-chat"/></svg>온가족방</a>
     <a href="#diary" data-v="diary" class="more-item"><svg class="i"><use href="#i-book"/></svg>일기</a>
     <a href="#todo" data-v="todo"><svg class="i"><use href="#i-check"/></svg>할 일</a>
+    <a href="#shop" data-v="shop"><svg class="i"><use href="#i-cart"/></svg>저녁메뉴</a>
     <a href="#money" data-v="money" class="more-item"><svg class="i"><use href="#i-coin"/></svg>용돈</a>
     <a href="#family" data-v="family" class="more-item"><svg class="i"><use href="#i-people"/></svg>가족</a>
       <button type="button" class="more-btn" id="more-btn" aria-expanded="false" aria-controls="more-sheet"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>더보기</button>
@@ -508,7 +509,7 @@ body.simple .card > .sticker-row{display:flex}
         </div>
       </div>
       <div class="card" id="home-shop-card">
-        <div class="card-h"><h2><svg class="i"><use href="#i-cart"/></svg>저녁메뉴 및 사주세요 🍽️</h2><a class="more" href="#shop" data-jump="shop-card">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
+        <div class="card-h"><h2>🍽️ 저녁메뉴 및 사주세요 🛒</h2><a class="more" href="#shop">전체<svg class="i" style="width:16px;height:16px"><use href="#i-right"/></svg></a></div>
         <ul class="list" id="home-shop"></ul>
         <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
         <form class="add grow-input" data-form="shop"><textarea id="home-shop-in" rows="1" placeholder="저녁메뉴, 필요한 거 (예: 김치찌개, 우유)" maxlength="60" required aria-label="살 것" enterkeyhint="done"></textarea><button class="btn">추가</button></form>
@@ -601,8 +602,12 @@ body.simple .card > .sticker-row{display:flex}
       </form>
     </div>
     <div class="grid-people" id="todo-cols"></div>
+  </section>
+
+  <!-- 저녁메뉴 및 사주세요 -->
+  <section class="view" data-view="shop" hidden>
     <div class="card" id="shop-card">
-      <div class="card-h" style="flex-wrap:wrap;gap:8px"><h2 style="white-space:nowrap"><svg class="i"><use href="#i-cart"/></svg>저녁메뉴 및 사주세요 🍽️</h2><button class="btn ghost" type="button" id="sh-clear" style="white-space:nowrap">산 것 지우기</button></div>
+      <div class="card-h" style="flex-wrap:wrap;gap:8px"><h2 style="white-space:nowrap">🍽️ 저녁메뉴 및 사주세요 🛒</h2><button class="btn ghost" type="button" id="sh-clear" style="white-space:nowrap">산 것 지우기</button></div>
       <div class="sub" style="margin:-4px 0 4px">먹고 싶은 저녁메뉴나 필요한 물건을 적으면 음식은 “○○ 먹고 싶어요!”, 간식·준비물은 “○○ 사주세요!”로 올라가고 엄마·아빠에게 알림이 가요. 같은 게 갖고 싶으면 ‘나도!’를 눌러요.</div>
       <ul class="list lined" id="shop-full"></ul>
       <div class="shop-quick" aria-label="음식·간식·준비물 빠르게 고르기"></div>
@@ -775,6 +780,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=45"></script>
+<script src="app.js?v=46"></script>
 </body>
 </html>
