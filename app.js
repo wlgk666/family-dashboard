@@ -71,14 +71,12 @@
   const eventsOn = s => eventsBetween(s, ymd(addDays(parseYmd(s), 1)));
 
   // ---------- routing ----------
-  const VIEWS = ["home","calendar","diary","todo","money","board","allchat","family"];
+  const VIEWS = ["home","calendar","diary","todo","shop","money","board","allchat","family"];
   // "전체"처럼 다른 화면의 특정 카드로 가는 링크: data-jump="카드 id"
   let pendingJump = "";
   function route() {
     const h = location.hash.slice(1);
-    // #shop = 저녁메뉴 및 사주세요 목록 (할 일 화면 아래쪽). 알림을 누르거나 홈의 "전체"를 누르면 그 목록으로 바로 내려가요
-    if (h === "shop") pendingJump = "shop-card";
-    let v = h === "shop" ? "todo" : VIEWS.includes(h) ? h : /^dm(-\w+)?$/.test(h) ? "dm" : "home"; // #dm = 1:1 상대 고르기, #dm-<가족id> = 그 가족과 1:1
+    let v = VIEWS.includes(h) ? h : /^dm(-\w+)?$/.test(h) ? "dm" : "home"; // #dm = 1:1 상대 고르기, #dm-<가족id> = 그 가족과 1:1
     if (isSimple() && v === "board") v = "allchat";
     if (isSimple() && !SIMPLE_VIEWS.includes(v)) v = "calendar";
     const sec = v === "allchat" || v === "dm" ? "board" : v; // 온가족방 · 1:1도 같은 수다 화면을 써요
@@ -1250,7 +1248,7 @@
     const n = await st.loadAll();
     NAMES.forEach(nm => state[nm] = pull(st, nm));
     if (n === 0 && !allowNew) return "empty";
-    db = st; famKey = key; store("fam-key", key); renderAll(); if (location.hash === "#shop") route(); // 알림으로 열었을 때: 목록이 다 그려진 뒤 다시 그 위치로
+    db = st; famKey = key; store("fam-key", key); renderAll();
     syncPush();
     st.cleanupPhotos(PHOTO_DAYS * 864e5).catch(() => {});
     cleanupChores();
