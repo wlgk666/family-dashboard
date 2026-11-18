@@ -663,19 +663,36 @@
   const cmtsOf = id => state.comments.filter(c => c.msg === id).sort((a,b) => a.createdAt - b.createdAt);
   const delComments = id => Promise.all(cmtsOf(id).map(c => db.doc("comments/"+c.id).delete().catch(() => {})));
   const roomUrl = r => isDm(r) ? "./#dm-" + me : r === "all" ? "./#allchat" : "./#board";
-  async function addComment(mg) {
+  const msgWhat = mg => mg.photo ? "📷 사진" : mg.sticker ? mg.text + " 스티커" : (mg.text || "");
+  // 💬 누르면 그 카드의 수다 입력칸이 "OO에게 댓글" 모드가 돼요 (카톡 답장처럼). 보내기 = 그 글에 댓글
+  function startReply(mg, node) {
     if (!ready()) return;
     if (!member(me)) return toast("가족 메뉴에서 ‘이 기기는 나’를 먼저 눌러 주세요.");
-    const w = member(mg.by), what = mg.photo ? "📷 사진" : mg.sticker ? mg.text + " 스티커" : mg.text;
-    let v = await editText(`💬 ${w ? w.name : "가족"}의 글에 댓글`, "", 200, "달기", what ? "‘" + (what.length > 30 ? what.slice(0, 30) + "…" : what) + "’에 한마디" : "");
-    if (v == null) return;
-    v = v.trim(); if (!v) return toast("댓글을 적어 주세요.");
+    const card = node.closest(".card"), f = card && card.querySelector('form[data-form="msg"]'); if (!f) return;
+    f._reply = mg; showReplyBar(f);
+    f.querySelector("textarea").focus();
+    requestAnimationFrame(chatToEnd);
+  }
+  function showReplyBar(f) {
+    const bar = f._bar, mg = f._reply, t = f.querySelector("textarea"); if (!bar) return;
+    if (!t.dataset.ph) t.dataset.ph = t.placeholder;
+    if (!mg) { bar.hidden = true; t.placeholder = t.dataset.ph; f.classList.remove("replying"); return; }
+    const w = member(mg.by);
+    bar.querySelector(".rb-who").textContent = `💬 ${w ? w.name : "가족"}에게 댓글`;
+    bar.querySelector(".rb-what").textContent = msgWhat(mg);
+    bar.hidden = false; f.classList.add("replying"); t.placeholder = "댓글 입력";
+  }
+  function endReply(f) { if (f._reply) { f._reply = null; showReplyBar(f); requestAnimationFrame(chatToEnd); } }
+  async function postComment(mg, v) {
+    if (!ready()) return;
+    if (!member(me)) return toast("가족 메뉴에서 ‘이 기기는 나’를 먼저 눌러 주세요.");
+    const what = msgWhat(mg);
     try {
+      const prev = cmtsOf(mg.id).map(c => c.by);
       await db.collection("comments").add({ msg: mg.id, text: v, by: me, createdAt: Date.now() });
       // 알림: 글쓴이와 먼저 댓글 단 가족에게 (나는 빼고)
-      const r = roomOf(mg), to = [...new Set([mg.by, ...cmtsOf(mg.id).map(c => c.by)])].filter(x => x && x !== me && member(x));
-      const meM = member(me);
-      if (to.length) notify({ to, except: me, title: `💬 ${meM ? meM.name : "가족"}의 댓글`, body: v + (what ? "  ·  ↳ " + what : ""), url: roomUrl(r), tag: "cmt-" + mg.id });
+      const to = [...new Set([mg.by, ...prev])].filter(x => x && x !== me && member(x)), meM = member(me);
+      if (to.length) notify({ to, except: me, title: `💬 ${meM ? meM.name : "가족"}의 댓글`, body: v + (what ? "  ·  ↳ " + what : ""), url: roomUrl(roomOf(mg)), tag: "cmt-" + mg.id });
     } catch (x) { fail(x); }
   }
   function cmtList(mg) {
@@ -717,6 +734,7 @@
     { const bc = $("board-msgs").closest(".card");
       [$("board-msgs"), $("board-sub"), bc.querySelector(".sticker-row"), bc.querySelector("form.chat-input")].forEach(x => x.hidden = picking);
       $("dm-pick").hidden = !picking; if (picking) renderDmPick(); }
+    $$('form[data-form="msg"]').forEach(f => { const r = f._reply; if (r && (!state.messages.some(m => m.id === r.id) || roomOf(r) !== roomFor(f))) endReply(f); });
     [["home-msgs", homeList.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
       const box = $(id); box.replaceChildren();
       let lastDay = null, lastBy = null;
@@ -748,7 +766,7 @@
         const hb = el("button","heart" + ((mg.hearts||[]).includes(me) ? " on" : ""), hearts ? `♥ ${hearts}` : "♡");
         hb.type = "button"; hb.setAttribute("aria-label","하트 누르기"); hb.onclick = () => toggleHeart(mg);
         const nc = cmtsOf(mg.id).length, cb = el("button","heart cmt-btn" + (nc ? " has" : ""), nc ? `💬 ${nc}` : "💬");
-        cb.type = "button"; cb.setAttribute("aria-label", nc ? `댓글 ${nc}개 · 댓글 달기` : "댓글 달기"); cb.onclick = () => addComment(mg);
+        cb.type = "button"; cb.setAttribute("aria-label", nc ? `댓글 ${nc}개 · 댓글 달기` : "댓글 달기"); cb.onclick = () => startReply(mg, cb);
         const acts = el("div","chat-acts"); acts.append(hb, cb);
         side.append(acts, el("span","chat-time", `${d.getHours() < 12 ? "오전" : "오후"} ${((d.getHours()+11)%12)+1}:${pad(d.getMinutes())}`));
         if (mg.editedAt) side.append(el("span","chat-time","수정됨"));
@@ -827,6 +845,11 @@
   let photoForm = null;
   const MAX_PHOTOS = 5; // 한 번에 보낼 수 있는 사진 수
   $$("form.chat-input").forEach(f => {
+    { const bar = el("div","reply-bar"), tx = el("div","rb-tx"), x = el("button","rb-x","×");
+      tx.append(el("div","rb-who"), el("div","rb-what")); x.type = "button"; x.setAttribute("aria-label","댓글 그만 쓰기");
+      x.addEventListener("pointerdown", e => e.preventDefault()); // 자판은 그대로
+      x.onclick = () => endReply(f);
+      bar.append(tx, x); bar.hidden = true; f.before(bar); f._bar = bar; }
     const pb = el("button","photo-btn","+"); pb.type = "button"; pb.setAttribute("aria-label","사진 보내기 (최대 5장)");
     pb.onclick = () => { if (!ready()) return; photoForm = f; $("photo-in").value = ""; $("photo-in").click(); };
     f.prepend(pb);
@@ -1010,7 +1033,7 @@
       notify({ to: adults, except: me || "", title: `${shopEmo(item)} 저녁메뉴 및 사주세요`, body: `${w ? w.name : "가족"}: ${item} ${askWord(item, false)}`, url: "./#shop", tag: "shop" }); }
   })));
   $$('form[data-form="msg"]').forEach(f => f.addEventListener("submit", ev => {
-    ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); [60, 300].forEach(ms => setTimeout(() => { if (!inp.value.trim()) inp.value = ""; fitMsgBox(inp); }, ms)); sendMsg(text, false, "", roomFor(f)); // 아이폰 한글 입력이 늦게 남기는 글자·줄바꿈까지 지우고 입력칸을 한 줄로
+    ev.preventDefault(); const inp = f.querySelector("textarea"), text = inp.value.trim(); if (!text) return; inp.value = ""; fitMsgBox(inp); [60, 300].forEach(ms => setTimeout(() => { if (!inp.value.trim()) inp.value = ""; fitMsgBox(inp); }, ms)); if (f._reply) { const mg = f._reply; endReply(f); postComment(mg, text); } else sendMsg(text, false, "", roomFor(f)); // 아이폰 한글 입력이 늦게 남기는 글자·줄바꿈까지 지우고 입력칸을 한 줄로
   }));
   // 수다 입력칸: 글이 길어지면 줄바꿈되며 자동으로 늘어나요 (휴대폰은 엔터 = 줄바꿈, 컴퓨터는 엔터 = 보내기 · Shift+엔터 = 줄바꿈)
   function fitMsgBox(t) { const h0 = t.style.height; t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; if (t.style.height !== h0) requestAnimationFrame(chatToEnd); }
