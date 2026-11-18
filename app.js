@@ -186,11 +186,12 @@
       const box = $("edit"), t = $("edit-in");
       $("edit-title").textContent = title; t.maxLength = max || 300; t.value = value || "";
       $("edit-ok").textContent = okLabel || "저장"; t.placeholder = ph || "";
-      const done = v => { box.hidden = true; box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
+      const y0 = scrollY; // 쓰는 동안 뒤 화면이 움직이지 않게: 닫으면 원래 자리로
+      const done = v => { box.hidden = true; scrollTo(0, y0); requestAnimationFrame(chatToEnd); box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
       $("edit-ok").onclick = () => done(t.value);
       $("edit-cancel").onclick = () => done(null);
       box.onclick = ev => { if (ev.target === box) done(null); };
-      box.hidden = false; fitEditBox(); t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+      box.hidden = false; fitEditBox(); t.focus({ preventScroll: true }); t.setSelectionRange(t.value.length, t.value.length);
     });
   }
   function fitEditBox() { const t = $("edit-in"); t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; }
@@ -682,7 +683,6 @@
     });
     return box;
   }
-  let holdScroll = null; // 댓글·하트만 바뀌었을 땐 보던 자리 그대로 (맨 아래로 튀지 않게)
   function renderMsgs() {
     // 1:1 방은 가족 목록이 늦게 불러와지거나 '이 기기는 나'가 바뀌면 주소(#dm-<id>)로 다시 정해요
     const hm = location.hash.match(/^#dm-(\w+)$/);
@@ -705,10 +705,8 @@
     { const bc = $("board-msgs").closest(".card");
       [$("board-msgs"), $("board-sub"), bc.querySelector(".sticker-row"), bc.querySelector("form.chat-input")].forEach(x => x.hidden = picking);
       $("dm-pick").hidden = !picking; if (picking) renderDmPick(); }
-    { const b = $("board-msgs"), sig = cr + ":" + list.length, atEnd = b.scrollHeight - b.scrollTop - b.clientHeight < 60;
-      holdScroll = b.dataset.sig === sig && !atEnd && b.scrollHeight > b.clientHeight ? b.scrollTop : null; b.dataset.sig = sig; }
     [["home-msgs", homeList.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
-      const box = $(id); box.replaceChildren(); const keep = id === "board-msgs" ? holdScroll : null;
+      const box = $(id); box.replaceChildren();
       let lastDay = null, lastBy = null;
       l.forEach(mg => {
         const d = new Date(mg.createdAt), dayKey = ymd(d);
@@ -726,7 +724,7 @@
           b.classList.remove("photo"); b.classList.add("expired"); b.append(el("span","t", "📷 사진 보관 기간(7일)이 지났어요" + (mg.text ? "\n" + mg.text : "")));
         } else if (mg.photo) {
           const im = el("img"); im.alt = `${m ? m.name : "가족"}이 보낸 사진`; im.decoding = "async";
-          im.onload = () => { if (keep == null) box.scrollTop = box.scrollHeight; }; // 사진이 늦게 뜨며 밀려난 최근 글이 다시 보이게
+          im.onload = () => { box.scrollTop = box.scrollHeight; }; // 사진이 늦게 뜨며 밀려난 최근 글이 다시 보이게
           db && db.getPhoto(mg.photo).then(src => { if (src) im.src = src; else { im.replaceWith(el("span","t","📷 사진이 지워졌어요")); } });
           im.onclick = () => { if (!im.src) return; $("photo-big").src = im.src; $("photo-view").hidden = false; };
           b.append(im);
@@ -749,7 +747,7 @@
         lastBy = mg.by;
       });
       if (!l.length) box.append(el("div","empty chat-empty", id === "board-msgs" && dm ? `${peer ? peer.name : "가족"}에게 첫 메시지를 보내 보세요 💌 둘만 볼 수 있어요.` : "첫 수다를 시작해 보세요! 😊를 누르면 스티커도 있어요 💬"));
-      box.scrollTop = keep != null ? keep : box.scrollHeight;
+      box.scrollTop = box.scrollHeight;
     });
     requestAnimationFrame(chatToEnd); // 글이 새로 오거나 위쪽 안내가 사라져도 최근 글이 보이게
   }
@@ -797,7 +795,7 @@
       b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = Math.max(h, 260) + "px";
       if (h < 260 && form) scrollTo(0, form.getBoundingClientRect().bottom + scrollY - (navTop - 14)); // 화면이 너무 작으면 페이지를 내려서 맞춤
     } else { b.style.minHeight = b.style.maxHeight = b.style.height = ""; card.style.top = card.style.height = ""; }
-    if (holdScroll != null) { b.scrollTop = holdScroll; holdScroll = null; } else b.scrollTop = b.scrollHeight;
+    b.scrollTop = b.scrollHeight;
   }
   addEventListener("resize", () => requestAnimationFrame(chatToEnd));
   // 자판이 열리고 닫힐 때(아이폰은 window resize가 없어서 visualViewport로 알아요)
