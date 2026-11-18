@@ -297,6 +297,16 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .heart{border:0;background:transparent;color:var(--muted);font-size:12px;padding:0 2px;line-height:1.4}
 .heart.on{color:var(--pink);font-weight:700}
 .chat-x{width:22px;height:22px;font-size:14px}
+.chat-acts{display:flex;align-items:center;gap:2px}
+.cmt-btn{font-size:11px;opacity:.75;white-space:nowrap}
+.cmt-btn.has{opacity:1;color:var(--ink);font-weight:600}
+.chat-cmts{display:flex;flex-direction:column;gap:3px;margin-top:2px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 8px;font-size:13px;line-height:1.35;max-width:100%;min-width:0}
+.cmt{display:flex;align-items:flex-start;gap:4px;min-width:0}
+.cmt-arrow{color:var(--muted);flex:none}
+.cmt-t{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
+.cmt-name{font-weight:700}
+.cmt-time{font-size:10px;color:var(--muted);white-space:nowrap}
+.cmt-x{width:22px;height:20px;font-size:13px;flex:none}
 .sticker-row{display:flex;flex-direction:column;gap:4px;padding-bottom:2px}
 .stk-cats{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 .stk-cats::-webkit-scrollbar{display:none}
@@ -805,6 +815,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=55"></script>
+<script src="app.js?v=56"></script>
 </body>
 </html>

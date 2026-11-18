@@ -4,7 +4,7 @@
   const COLORS = 6;
   const DOW = ["일","월","화","수","목","금","토"];
   const MOODS = [["홈런","var(--m0)"],["안타","var(--m4)"],["볼넷","var(--m3)"],["삼진","var(--m1)"]];
-  const NAMES = ["members","events","chores","notices","diary","shopping","messages","allowance","push"];
+  const NAMES = ["members","events","chores","notices","diary","shopping","messages","comments","allowance","push"];
   const state = Object.fromEntries(NAMES.map(n => [n, []]));
   state.weather = [];
   const CFG = window.FAMILY_CONFIG || {};
@@ -181,10 +181,11 @@
     });
   }
   // 고치기 창: editText(제목, 지금 글, 최대 글자 수) → 고친 글 (취소하면 null)
-  function editText(title, value, max) {
+  function editText(title, value, max, okLabel, ph) {
     return new Promise(res => {
       const box = $("edit"), t = $("edit-in");
       $("edit-title").textContent = title; t.maxLength = max || 300; t.value = value || "";
+      $("edit-ok").textContent = okLabel || "저장"; t.placeholder = ph || "";
       const done = v => { box.hidden = true; box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
       $("edit-ok").onclick = () => done(t.value);
       $("edit-cancel").onclick = () => done(null);
@@ -635,7 +636,7 @@
       const inRoom = state.messages.filter(m => roomOf(m) === r);
       if (inRoom.length >= 150) {
         const old = [...inRoom].sort((a,b) => a.createdAt - b.createdAt).slice(0, inRoom.length - 149);
-        for (const o of old) { await db.doc("messages/"+o.id).delete(); if (o.photo) await db.doc("photo/"+o.photo).delete().catch(() => {}); }
+        for (const o of old) { await db.doc("messages/"+o.id).delete(); if (o.photo) await db.doc("photo/"+o.photo).delete().catch(() => {}); await delComments(o.id); }
       }
     }).catch(fail);
   }
@@ -645,6 +646,43 @@
     const h = new Set(mg.hearts || []); h.has(me) ? h.delete(me) : h.add(me);
     db.doc("messages/"+mg.id).update({ hearts: [...h] }).catch(fail);
   }
+  // 댓글: 글마다 💬 를 눌러 짧게 달아요. comments(msg = 글 id)에 따로 저장해서 여럿이 동시에 달아도 겹치지 않아요
+  const cmtsOf = id => state.comments.filter(c => c.msg === id).sort((a,b) => a.createdAt - b.createdAt);
+  const delComments = id => Promise.all(cmtsOf(id).map(c => db.doc("comments/"+c.id).delete().catch(() => {})));
+  const roomUrl = r => isDm(r) ? "./#dm-" + me : r === "all" ? "./#allchat" : "./#board";
+  async function addComment(mg) {
+    if (!ready()) return;
+    if (!member(me)) return toast("가족 메뉴에서 ‘이 기기는 나’를 먼저 눌러 주세요.");
+    const w = member(mg.by), what = mg.photo ? "📷 사진" : mg.sticker ? mg.text + " 스티커" : mg.text;
+    let v = await editText(`💬 ${w ? w.name : "가족"}의 글에 댓글`, "", 200, "달기", what ? "‘" + (what.length > 30 ? what.slice(0, 30) + "…" : what) + "’에 한마디" : "");
+    if (v == null) return;
+    v = v.trim(); if (!v) return toast("댓글을 적어 주세요.");
+    try {
+      await db.collection("comments").add({ msg: mg.id, text: v, by: me, createdAt: Date.now() });
+      // 알림: 글쓴이와 먼저 댓글 단 가족에게 (나는 빼고)
+      const r = roomOf(mg), to = [...new Set([mg.by, ...cmtsOf(mg.id).map(c => c.by)])].filter(x => x && x !== me && member(x));
+      const meM = member(me);
+      if (to.length) notify({ to, except: me, title: `💬 ${meM ? meM.name : "가족"}의 댓글`, body: v + (what ? "  ·  ↳ " + what : ""), url: roomUrl(r), tag: "cmt-" + mg.id });
+    } catch (x) { fail(x); }
+  }
+  function cmtList(mg) {
+    const l = cmtsOf(mg.id); if (!l.length) return null;
+    const box = el("div","chat-cmts");
+    l.forEach(c => {
+      const m = member(c.by), row = el("div","cmt" + (c.by === me ? " mine" : ""));
+      const n = el("b","cmt-name", m ? m.name : "가족"); if (m) n.style.color = colorVar(m);
+      const t = el("span","cmt-t"); t.append(n, document.createTextNode(" " + c.text), el("span","cmt-time", " " + ago(c.createdAt)), editedMark(c));
+      row.append(el("span","cmt-arrow","↳"), t);
+      if (c.by === me) {
+        const ed = editBtn("댓글", () => editField("comments", c, "text", "댓글 고치기", { max: 200 })); ed.classList.add("cmt-x");
+        const x = xBtn("댓글", del("comments", c.id)); x.classList.add("cmt-x");
+        row.append(ed, x);
+      }
+      box.append(row);
+    });
+    return box;
+  }
+  let holdScroll = null; // 댓글·하트만 바뀌었을 땐 보던 자리 그대로 (맨 아래로 튀지 않게)
   function renderMsgs() {
     // 1:1 방은 가족 목록이 늦게 불러와지거나 '이 기기는 나'가 바뀌면 주소(#dm-<id>)로 다시 정해요
     const hm = location.hash.match(/^#dm-(\w+)$/);
@@ -663,12 +701,14 @@
     [ub, $("home-dm-unread")].forEach(x => { if (x) { x.hidden = !unread; x.textContent = unread > 99 ? "99+" : String(unread); } });
     $("board-msg-in").placeholder = cr === "all" ? "할머니·할아버지께 한마디 💞" : dm ? `${peer ? peer.name : "가족"}에게만 보내는 메시지 🤫` : "오늘 학교에서 무슨 일 있었어?";
     $("board-sub").textContent = dm ? `${peer ? peer.name : "상대"}와 나, 둘만 보는 대화예요. 다른 가족 화면엔 나오지 않아요. ＋로 사진(7일 보관), 😊로 스티커를 보낼 수 있어요.`
-      : "말풍선을 두 번 누르거나 ♡를 누르면 하트를 줄 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.";
+      : "말풍선을 두 번 누르거나 ♡를 누르면 하트, 💬를 누르면 그 글에 댓글을 달 수 있어요. ＋를 누르면 사진을 5장까지 보낼 수 있고, 사진은 7일 동안 보관되고 그 뒤엔 자동으로 지워져요.";
     { const bc = $("board-msgs").closest(".card");
       [$("board-msgs"), $("board-sub"), bc.querySelector(".sticker-row"), bc.querySelector("form.chat-input")].forEach(x => x.hidden = picking);
       $("dm-pick").hidden = !picking; if (picking) renderDmPick(); }
+    { const b = $("board-msgs"), sig = cr + ":" + list.length, atEnd = b.scrollHeight - b.scrollTop - b.clientHeight < 60;
+      holdScroll = b.dataset.sig === sig && !atEnd && b.scrollHeight > b.clientHeight ? b.scrollTop : null; b.dataset.sig = sig; }
     [["home-msgs", homeList.slice(-5)], ["board-msgs", list]].forEach(([id, l]) => {
-      const box = $(id); box.replaceChildren();
+      const box = $(id); box.replaceChildren(); const keep = id === "board-msgs" ? holdScroll : null;
       let lastDay = null, lastBy = null;
       l.forEach(mg => {
         const d = new Date(mg.createdAt), dayKey = ymd(d);
@@ -686,7 +726,7 @@
           b.classList.remove("photo"); b.classList.add("expired"); b.append(el("span","t", "📷 사진 보관 기간(7일)이 지났어요" + (mg.text ? "\n" + mg.text : "")));
         } else if (mg.photo) {
           const im = el("img"); im.alt = `${m ? m.name : "가족"}이 보낸 사진`; im.decoding = "async";
-          im.onload = () => { box.scrollTop = box.scrollHeight; }; // 사진이 늦게 뜨며 밀려난 최근 글이 다시 보이게
+          im.onload = () => { if (keep == null) box.scrollTop = box.scrollHeight; }; // 사진이 늦게 뜨며 밀려난 최근 글이 다시 보이게
           db && db.getPhoto(mg.photo).then(src => { if (src) im.src = src; else { im.replaceWith(el("span","t","📷 사진이 지워졌어요")); } });
           im.onclick = () => { if (!im.src) return; $("photo-big").src = im.src; $("photo-view").hidden = false; };
           b.append(im);
@@ -697,16 +737,19 @@
         const hearts = (mg.hearts || []).length;
         const hb = el("button","heart" + ((mg.hearts||[]).includes(me) ? " on" : ""), hearts ? `♥ ${hearts}` : "♡");
         hb.type = "button"; hb.setAttribute("aria-label","하트 누르기"); hb.onclick = () => toggleHeart(mg);
-        side.append(hb, el("span","chat-time", `${d.getHours() < 12 ? "오전" : "오후"} ${((d.getHours()+11)%12)+1}:${pad(d.getMinutes())}`));
+        const nc = cmtsOf(mg.id).length, cb = el("button","heart cmt-btn" + (nc ? " has" : ""), nc ? `💬 ${nc}` : "💬");
+        cb.type = "button"; cb.setAttribute("aria-label", nc ? `댓글 ${nc}개 · 댓글 달기` : "댓글 달기"); cb.onclick = () => addComment(mg);
+        const acts = el("div","chat-acts"); acts.append(hb, cb);
+        side.append(acts, el("span","chat-time", `${d.getHours() < 12 ? "오전" : "오후"} ${((d.getHours()+11)%12)+1}:${pad(d.getMinutes())}`));
         if (mg.editedAt) side.append(el("span","chat-time","수정됨"));
         if (mine && !mg.sticker) { const ed = editBtn("메시지", () => editField("messages", mg, "text", mg.photo ? "사진 설명 고치기" : "메시지 고치기", { max: 300, empty: !!mg.photo })); ed.classList.add("chat-x"); side.append(ed); }
-        if (mine) { const x = xBtn("메시지", del("messages", mg.id)); x.classList.add("chat-x"); if (mg.photo) { const d0 = x.onclick; x.onclick = e => { d0 && d0(e); db && db.doc("photo/"+mg.photo).delete().catch(() => {}); }; } side.append(x); }
+        if (mine) { const x = xBtn("메시지", del("messages", mg.id)); x.classList.add("chat-x"); { const d0 = x.onclick; x.onclick = e => { d0 && d0(e); if (!db) return; if (mg.photo) db.doc("photo/"+mg.photo).delete().catch(() => {}); delComments(mg.id); }; } side.append(x); }
         line.append(b, side);
-        col.append(line); row.append(col); box.append(row);
+        col.append(line); if (id === "board-msgs") { const cl = cmtList(mg); if (cl) col.append(cl); } row.append(col); box.append(row);
         lastBy = mg.by;
       });
       if (!l.length) box.append(el("div","empty chat-empty", id === "board-msgs" && dm ? `${peer ? peer.name : "가족"}에게 첫 메시지를 보내 보세요 💌 둘만 볼 수 있어요.` : "첫 수다를 시작해 보세요! 😊를 누르면 스티커도 있어요 💬"));
-      box.scrollTop = box.scrollHeight;
+      box.scrollTop = keep != null ? keep : box.scrollHeight;
     });
     requestAnimationFrame(chatToEnd); // 글이 새로 오거나 위쪽 안내가 사라져도 최근 글이 보이게
   }
@@ -754,7 +797,7 @@
       b.style.minHeight = "0"; b.style.maxHeight = "none"; b.style.height = Math.max(h, 260) + "px";
       if (h < 260 && form) scrollTo(0, form.getBoundingClientRect().bottom + scrollY - (navTop - 14)); // 화면이 너무 작으면 페이지를 내려서 맞춤
     } else { b.style.minHeight = b.style.maxHeight = b.style.height = ""; card.style.top = card.style.height = ""; }
-    b.scrollTop = b.scrollHeight;
+    if (holdScroll != null) { b.scrollTop = holdScroll; holdScroll = null; } else b.scrollTop = b.scrollHeight;
   }
   addEventListener("resize", () => requestAnimationFrame(chatToEnd));
   // 자판이 열리고 닫힐 때(아이폰은 window resize가 없어서 visualViewport로 알아요)
@@ -1283,6 +1326,11 @@
     }
   }
 
+  // 글이 지워졌는데 남은 댓글은 정리해요 (글을 다 불러온 뒤에만)
+  async function cleanupComments() {
+    const ids = new Set(state.messages.map(m => m.id));
+    for (const c of state.comments.filter(c => !ids.has(c.msg))) { try { await db.doc("comments/"+c.id).delete(); } catch (e) { break; } }
+  }
   async function connect(key, allowNew) {
     const st = await window.createFamilyStore(CFG, key, () => {
       NAMES.forEach(n => state[n] = pull(st, n));
@@ -1295,6 +1343,7 @@
     syncPush();
     st.cleanupPhotos(PHOTO_DAYS * 864e5).catch(() => {});
     cleanupChores();
+    cleanupComments();
     naverRefresh(false);
     return "ok";
   }
