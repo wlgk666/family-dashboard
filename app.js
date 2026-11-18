@@ -186,14 +186,26 @@
       const box = $("edit"), t = $("edit-in");
       $("edit-title").textContent = title; t.maxLength = max || 300; t.value = value || "";
       $("edit-ok").textContent = okLabel || "저장"; t.placeholder = ph || "";
-      const y0 = scrollY; // 쓰는 동안 뒤 화면이 움직이지 않게: 닫으면 원래 자리로
-      const done = v => { box.hidden = true; scrollTo(0, y0); requestAnimationFrame(chatToEnd); box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
+      // 휴대폰: 뒤 화면은 그 자리에 멈춰 두고(스크롤 잠금), 쓰는 창은 자판 바로 위 아래쪽에 고정해요
+      const y0 = scrollY, sheet = matchMedia("(max-width:760px)").matches;
+      if (sheet) { document.body.style.top = -y0 + "px"; document.body.classList.add("lock"); box.classList.add("sheet"); }
+      const done = v => { box.hidden = true;
+        if (sheet) { document.body.classList.remove("lock"); document.body.style.top = ""; box.classList.remove("sheet"); box.style.top = box.style.height = ""; }
+        scrollTo(0, y0); requestAnimationFrame(chatToEnd); box.onclick = $("edit-ok").onclick = $("edit-cancel").onclick = null; res(v); };
       $("edit-ok").onclick = () => done(t.value);
       $("edit-cancel").onclick = () => done(null);
       box.onclick = ev => { if (ev.target === box) done(null); };
-      box.hidden = false; fitEditBox(); t.focus({ preventScroll: true }); t.setSelectionRange(t.value.length, t.value.length);
+      box.hidden = false; fitEditBox(); fitSheet(); t.focus({ preventScroll: true }); t.setSelectionRange(t.value.length, t.value.length);
     });
   }
+  // 쓰는 창을 지금 보이는 화면(자판 위)에 딱 맞춰요. 아이폰은 자판이 열려도 window 크기가 안 바뀌어서 visualViewport로 알아요
+  function fitSheet() {
+    const box = $("edit"); if (box.hidden || !box.classList.contains("sheet")) return;
+    const vv = window.visualViewport;
+    box.style.top = (vv ? vv.offsetTop : 0) + "px"; box.style.height = (vv ? vv.height : innerHeight) + "px";
+  }
+  if (window.visualViewport) ["resize","scroll"].forEach(ev => visualViewport.addEventListener(ev, fitSheet));
+  addEventListener("resize", fitSheet);
   function fitEditBox() { const t = $("edit-in"); t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; }
   $("edit-in").addEventListener("input", fitEditBox);
   // 내가 쓴 글 고치기: 그대로면 저장하지 않고, 고친 글엔 editedAt 을 남겨 "(수정됨)"으로 보여요
