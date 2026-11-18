@@ -256,7 +256,7 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
   body.kb [data-view="board"] > .card{position:fixed;left:6px;right:6px;z-index:40;margin:0;box-shadow:0 8px 30px rgb(0 0 0 / .25)}
   body.kb [data-view="board"] > .card > .sub,body.kb #room-tabs{display:none}
   body.kb #board-msgs{flex:1 1 auto;min-height:0!important;max-height:none!important;height:auto!important}
-  body.kb [data-view="board"] .sticker-row,body.kb [data-view="board"] form.chat-input{flex:none}
+  body.kb [data-view="board"] .sticker-row,body.kb [data-view="board"] .reply-bar,body.kb [data-view="board"] form.chat-input{flex:none}
   .rail nav{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px}
   .rail a,.rail .more-btn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rail{top:auto;right:0;width:auto;height:auto;flex-direction:row;padding:6px max(8px,env(safe-area-inset-right,0px)) max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) max(8px,env(safe-area-inset-left,0px))}
@@ -307,6 +307,13 @@ form.add textarea{width:100%;flex-basis:100%;min-height:90px;resize:vertical}
 .cmt-name{font-weight:700}
 .cmt-time{font-size:10px;color:var(--muted);white-space:nowrap}
 .cmt-x{width:22px;height:20px;font-size:13px;flex:none}
+.reply-bar{display:flex;align-items:center;gap:8px;background:var(--tint);border-radius:16px;padding:8px 8px 8px 14px;margin-bottom:-2px;min-width:0}
+.reply-bar[hidden]{display:none}
+.rb-tx{flex:1;min-width:0;line-height:1.35}
+.rb-who{font-size:13px;font-weight:700}
+.rb-what{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-x{flex:none;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;line-height:1;display:grid;place-items:center;padding:0}
+form.add.chat-input.replying{border-color:var(--pink)}
 .sticker-row{display:flex;flex-direction:column;gap:4px;padding-bottom:2px}
 .stk-cats{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 .stk-cats::-webkit-scrollbar{display:none}
@@ -413,6 +420,11 @@ body.simple .card > .sticker-row{display:flex}
 #edit .pop-card{max-width:440px;margin-top:8vh;gap:10px}
 #edit-in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;min-height:calc(2 * 1.45em + 22px);max-height:45vh;line-height:1.45;resize:none;overflow-y:auto;text-align:left}
 .edit-btns{display:flex;gap:8px;width:100%}
+/* 휴대폰: 쓰는 창은 아래쪽(자판 바로 위)에 고정, 뒤 화면은 잠가서 움직이지 않게 */
+body.lock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
+#edit.sheet{bottom:auto;align-items:end;overflow:hidden;padding:8px max(8px,env(safe-area-inset-right,0px)) 8px max(8px,env(safe-area-inset-left,0px))}
+#edit.sheet .pop-card{margin-top:0;max-width:none;border-radius:22px;padding:18px 16px 14px}
+#edit.sheet #edit-in{max-height:28vh}
 .ask-sub{font-size:14px;color:var(--muted);margin-bottom:6px}
 .pop .btn.ghost{color:var(--ink)}
 /* ---- diary lock ---- */
@@ -815,6 +827,6 @@ body.simple .card > .sticker-row{display:flex}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
-<script src="app.js?v=57"></script>
+<script src="app.js?v=59"></script>
 </body>
 </html>
