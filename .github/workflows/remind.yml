@@ -1,0 +1,17 @@
+name: 할 일 시간 알림
+on:
+  schedule:
+    - cron: "27 3 * * *"    # 12:27 (한국 시간) → '점심' 할 일, 12:30쯤 도착
+    - cron: "27 9 * * *"    # 18:27 (한국 시간) → '저녁' 할 일, 18:30쯤 도착
+    - cron: "55 3 * * *"    # 혹시 위가 안 돌았을 때를 위한 예비 (같은 시간대는 한 번만 보내도록 서버가 막아요)
+    - cron: "55 9 * * *"
+  workflow_dispatch:
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 점심·저녁 할 일 알림 보내기
+        run: |
+          curl -sS -X POST "https://tufmtipzfrynqavzpkvo.supabase.co/functions/v1/family-push" \
+            -H "content-type: application/json" -H "x-region: ap-northeast-2" \
+            -d '{"action":"remind"}'

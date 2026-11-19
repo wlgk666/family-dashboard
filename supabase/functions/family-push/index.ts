@@ -78,6 +78,7 @@ export async function handler(req) {
     if (req.method === "GET") return json({ publicKey: (await getVapid()).publicKey });
     const b = await req.json().catch(() => ({}));
     if (b.action === "morning") return json(await morningDigest(!!b.dry));
+    if (b.action === "remind") return json(await choreReminders(!!b.dry));
     const key = req.headers.get("x-family-key") || "";
     if (key.length < 4) return json({ error: "no key" }, 401);
     const fam = await sha256hex(key);
@@ -137,6 +138,43 @@ async function morningDigest(dry) {
     }
   }
   return { ok: true, day: today, families: fams.length, sent, preview: dry ? preview : undefined };
+}
+
+// ======================= 할 일 시간 알림: '점심' 12:30, '저녁' 18:30 =======================
+// 앱이 할 일을 만들 때 remind: "12:30" 처럼 시간을 붙여 두면, GitHub Actions 가 그 시간쯤 불러서 알려 줘요.
+// 한 번에 한 시간대(slot)만 보내고, "__vapid" 행에 보낸 slot 을 남겨서 여러 번 불려도 겹치지 않아요.
+// 한 번짜리 할 일은 그 시간이 지나서 만든 것이면 다음 날 같은 시간에, 매일 할 일은 그날 아직 안 했으면 매일 알려요.
+const REMIND_SLOTS = ["12:30", "18:30"];
+async function choreReminders(dry) {
+  const now = Date.now(), today = new Date(now + 9 * 3600e3).toISOString().slice(0, 10);
+  const slotTs = (t) => Date.parse(`${today}T${t}:00+09:00`);
+  // GitHub 이 조금 일찍(최대 10분) 또는 늦게(최대 3시간) 불러도 그 시간대로 쳐요
+  const slot = REMIND_SLOTS.filter((t) => now >= slotTs(t) - 10 * 60e3 && now <= slotTs(t) + 3 * 3600e3).pop();
+  if (!slot) return { skipped: true, reason: "no slot" };
+  const key = `${today} ${slot}`, due = slotTs(slot);
+  const guard = (await rows("family=eq.__vapid&col=eq.cfg&id=eq.remind&select=data"))[0];
+  if (!dry && guard && guard.data.slot === key) return { skipped: true, slot: key };
+  if (!dry) await rest("docs?on_conflict=family,col,id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ family: "__vapid", col: "cfg", id: "remind", data: { slot: key, at: now } }) });
+  const kstDay = (t) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10);
+  const subs = await rows("col=eq.push&select=family,id,data&limit=2000");
+  const fams = [...new Set(subs.map((r) => r.family))];
+  const vapid = await getVapid(); let sent = 0; const preview = [];
+  for (const fam of fams) {
+    const all = await rows(`family=eq.${fam}&col=in.(members,chores)&select=col,id,data&limit=5000`);
+    const members = all.filter((r) => r.col === "members");
+    const chores = all.filter((r) => r.col === "chores").map((r) => r.data).filter((c) => c && c.remind === slot
+      && (c.daily ? !(c.done && kstDay(c.doneAt || 0) === today) : !c.done && (c.createdAt || 0) < due));
+    if (!chores.length) continue;
+    for (const s of subs.filter((r) => r.family === fam && r.data && r.data.sub)) {
+      const m = members.find((x) => x.id === s.data.memberId); if (!m || m.data.kind === "grand") continue;
+      const mine = chores.filter((c) => !c.memberId || c.memberId === m.id || !members.some((x) => x.id === c.memberId));
+      if (!mine.length) continue;
+      const payload = JSON.stringify({ title: `⏰ ${m.data.name}의 할 일 (${slot})`, body: mine.slice(0, 4).map((c) => c.title).join(", ").slice(0, 200) + (mine.length > 4 ? ` 외 ${mine.length - 4}개` : ""), url: "./#todo", tag: "remind" });
+      if (dry) { preview.push({ todo: mine.length }); continue; }
+      try { const res = await sendPush(s.data.sub, payload, vapid); if (res.status === 201 || res.status === 200) sent++; if (res.status === 404 || res.status === 410) await rest(`docs?family=eq.${fam}&col=eq.push&id=eq.${encodeURIComponent(s.id)}`, { method: "DELETE" }); } catch (e) {}
+    }
+  }
+  return { ok: true, slot: key, families: fams.length, sent, preview: dry ? preview : undefined };
 }
 
 // ======================= 네이버 캘린더 → 일정 (한 방향, 새 일정만 추가) =======================
