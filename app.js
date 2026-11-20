@@ -438,11 +438,18 @@
     if (!isAdult(m)) { const b = el("a","jbal"); b.href = "#money"; b.append(el("span",null,"용돈"), el("strong",null, won(balanceOf(m.id)))); j.append(b); }
     return j;
   }
+  // 할 일에 '점심'이 들어 있으면 12:30, '저녁'이 들어 있으면 18:30에 알림 (둘 다 있으면 먼저 나온 말). 보내는 건 서버(family-push "remind")가 해요
+  const REMIND_WORDS = [["점심", "12:30"], ["저녁", "18:30"]];
+  function remindFor(title) {
+    const hit = REMIND_WORDS.map(([w, t]) => [title.indexOf(w), t]).filter(([i]) => i >= 0).sort((a, b) => a[0] - b[0])[0];
+    return hit ? hit[1] : "";
+  }
+  const remindLabel = t => { const [h, m] = t.split(":").map(Number); return `${h < 12 ? "오전" : "오후"} ${((h + 11) % 12) + 1}:${pad(m)}`; };
   function choreRow(c) {
     const li = el("li", c.done ? "done" : "");
     const cb = el("input","check"); cb.type = "checkbox"; cb.checked = !!c.done; cb.setAttribute("aria-label", c.title);
     cb.onchange = () => ready() && db.doc("chores/"+c.id).update({ done: cb.checked, doneBy: cb.checked ? (me||"") : "", doneAt: cb.checked ? Date.now() : 0 }).catch(fail);
-    const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title, editedMark(c)); g.append(t);
+    const g = el("div","grow"); const t = el("div"); if (c.daily) t.append(el("span","badge","매일")); t.append(c.title, editedMark(c)); if (c.remind && !c.done) t.append(el("span","badge rm",`⏰ ${remindLabel(c.remind)}`)); g.append(t);
     if (c.done) { const by = member(c.doneBy); g.append(el("div","meta",`${by ? by.name : "누군가"} 완료 · ${ago(c.doneAt)}${c.daily ? "" : " · 일주일 뒤 자동 삭제"}`)); }
     li.append(cb, g, editBtn(c.title, () => editField("chores", c, "title", "할 일 고치기", { max: 100, oneLine: true })), xBtn(c.title, del("chores", c.id)));
     return li;
@@ -991,9 +998,10 @@
     const title = $("ch-title").value.trim(); if (!title) return; $("ch-title").value = ""; setTimeout(() => $("ch-daily").setAttribute("aria-pressed","false"));
     // 여러 명을 고르면 사람마다 하나씩 따로 만들어서 각자 체크해요. 아무도 안 고르면 '누구든'
     const ids = sortedMembers().filter(m => chWho.has(m.id)).map(m => m.id), daily = $("ch-daily").getAttribute("aria-pressed") === "true";
-    const now = Date.now();
-    for (const memberId of (ids.length ? ids : [""])) await db.collection("chores").add({ title, memberId, daily, done: false, doneBy: "", doneAt: 0, createdAt: now });
+    const now = Date.now(), remind = remindFor(title);
+    for (const memberId of (ids.length ? ids : [""])) await db.collection("chores").add({ title, memberId, daily, done: false, doneBy: "", doneAt: 0, createdAt: now, ...(remind ? { remind } : {}) });
     if (ids.length > 1) toast(`${ids.map(id => member(id).name).join(", ")}에게 하나씩 추가했어요`);
+    else if (remind) toast(`${remindLabel(remind)}에 알려 드릴게요 ⏰`);
     // 매일 하는 일은 아침 8시 알림으로만, 한 번짜리 할 일은 바로 담당자에게 (누구든 = 알림 켠 가족 모두, 조부모 빼고)
     if (!daily) { const w = member(me), to = ids.length ? ids : state.members.filter(m => m.kind !== "grand").map(m => m.id);
       notify({ to, except: me || "", title: `✅ 할 일 · ${ids.length ? ids.map(id => member(id).name).join(", ") : "누구든"}`, body: `${w ? w.name : "가족"}: ${title}`, url: "./#todo", tag: "chore" }); }
@@ -1289,10 +1297,10 @@
     $$(".noti-btn").forEach(b => { b.hidden = on || !db; b.onclick = enablePush; });
     const st = $("push-status"); if (!st) return;
     const blocked = "Notification" in window && Notification.permission === "denied";
-    st.textContent = on ? "이 기기는 알림을 받고 있어요. 매일 아침 오늘 일정·할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요."
+    st.textContent = on ? "이 기기는 알림을 받고 있어요. 매일 아침 오늘 일정·할 일, 점심·저녁 할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요."
       : blocked ? "알림이 막혀 있어요. 아이폰·아이패드 설정 → 알림 → 오니가족에서 ‘알림 허용’을 켜 주세요."
       : !pushOK() && isApple() && !isStandalone() ? "Safari에서 공유 → 홈 화면에 추가한 뒤, 홈 화면의 오니가족 아이콘으로 열어서 켜 주세요."
-      : "버튼을 누르면 매일 아침 오늘 일정·할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요.";
+      : "버튼을 누르면 매일 아침 오늘 일정·할 일, 점심·저녁 할 일, 용돈 입금, 저녁메뉴 및 사주세요, 수다방 새 글을 앱이 꺼져 있어도 알려 줘요.";
   }
 
   // ---------- 네이버 캘린더 가져오기 (server does the work; the password never comes back to the browser) ----------
