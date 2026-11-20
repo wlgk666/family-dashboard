@@ -93,6 +93,22 @@ header.top{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
 @media (max-width:340px){.top-wx{grid-template-columns:auto auto auto}.top-wx svg.i,.top-wx .lab-w{display:none}}
 .top-wx .loc{grid-row:span 2;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;font-weight:600;color:var(--muted);padding-right:7px;margin-right:1px;border-right:1px solid var(--line);line-height:1.1}
 .top-wx[hidden]{display:none}
+/* 🎵 아이브 노래 */
+.music-btn{align-self:stretch;display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:4px 12px;color:var(--muted);font:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer}
+.music-btn[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+header.top{position:relative}
+@media (max-width:760px){.music-btn{position:absolute;top:2px;right:0;padding:7px 12px}}
+@media (max-width:380px){.music-btn .w{display:none}}
+.music-box{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;width:224px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgb(0 0 0 / .22);padding:12px;display:flex;flex-direction:column;gap:8px}
+.music-box[hidden]{display:none}
+.music-box .yt{width:200px;height:200px;border-radius:10px;overflow:hidden;background:#000}
+.music-box .yt iframe{display:block;width:200px;height:200px;border:0}
+.music-now{font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.music-hint{font-size:12px;color:var(--red);font-weight:600}
+.music-hint[hidden]{display:none}
+.music-ctl{display:flex;gap:6px}
+.music-ctl button{flex:1;border:1px solid var(--line);background:var(--tint);color:var(--ink);border-radius:10px;padding:6px 0;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+@media (max-width:760px){.music-box{bottom:calc(max(22px,calc(env(safe-area-inset-bottom,0px) + 8px)) + 76px);right:10px}}
 
 .notice{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted)}
 .notice b{color:var(--ink)}
@@ -525,6 +541,7 @@ body.lock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
     <div class="top-row">
       <label class="filter"><svg class="i" style="width:18px;height:18px"><use href="#i-people"/></svg><select id="filter" aria-label="누구 보기"></select></label>
       <a class="top-wx" id="top-wx" href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener" hidden></a>
+      <button type="button" class="music-btn" id="music-btn" aria-pressed="false" aria-controls="music-box"><span aria-hidden="true">🎵</span><span class="lab"><span class="w">노래 </span><span class="st">끔</span></span></button>
     </div>
   </header>
 
@@ -828,6 +845,13 @@ body.lock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 <script src="store.js?v=6"></script>
 <div class="photo-view" id="photo-view" hidden><div><img id="photo-big" alt="크게 본 사진"><div class="sub">화면을 누르면 닫혀요 · 길게 누르면 사진을 저장할 수 있어요</div></div></div>
 <input type="file" id="photo-in" accept="image/*" multiple hidden>
+<div class="music-box" id="music-box" hidden aria-label="아이브 노래">
+  <div class="yt"><div id="music-yt"></div></div>
+  <div class="music-now" id="music-now">아이브 노래</div>
+  <div class="music-hint" id="music-hint" hidden>소리가 안 나오면 영상 속 ▶를 한 번 눌러 주세요</div>
+  <div class="music-ctl"><button type="button" id="music-play" aria-label="재생">⏸</button><button type="button" id="music-next">다음 곡 ⏭</button><button type="button" id="music-off">끄기</button></div>
+</div>
 <script src="app.js?v=59"></script>
+<script src="music.js?v=1"></script>
 </body>
 </html>
