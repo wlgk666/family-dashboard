@@ -3,6 +3,10 @@
 // 유튜브 뮤직 공식 재생목록 'Presenting IVE'(앨범 사진만 나오는 음원)를 섞어서 틀어요.
 // 그 목록이 안 열리면 아이브 공식 뮤직비디오 목록으로 대신 틀어요.
 (() => {
+  // 지금은 노래 기능을 꺼 뒀어요. 다시 쓰려면 true로 바꾸면 버튼이 보이고 노래가 나와요.
+  const ENABLED = false;
+  if (!ENABLED) return;
+  const wrap = document.getElementById("music-wrap"); if (wrap) wrap.hidden = false;
   const LIST = "RDCLAK5uy_lnqcAaHruSFLBKg5wuEsmVEYndfGUmx2Y";
   const BACKUP = ["--FmExEAsM8", "Y8JFxS1HlDo", "F0B7HDiY-10", "pG6iaOMV46I", "6ZUIwj3FgUY", "Da4P2uT4mVc", "07EzMbVH3QE", "38xYeot-ciM", "B1ShLiq3EVc"];
   const $ = id => document.getElementById(id);
